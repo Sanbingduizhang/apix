@@ -1,0 +1,126 @@
+/**
+ * 全局样式与设计变量
+ *
+ * 整体思路：纸白背景 + 墨黑文字 + 只用一个靛蓝强调色。
+ * 所有颜色、圆角、字体都集中在这里定义，组件里不再写死色值，
+ * 以后想换主题，改这一个文件就够了。
+ */
+
+:root {
+  /* 背景与边框 */
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --sidebar-bg: #f7f7f5;
+  --border: #eae9e5;
+  --border-strong: #dedcd6;
+
+  /* 文字：三级层次，够用就好 */
+  --text: #1b1b19;
+  --text-2: #6b6b64;
+  --text-3: #a4a39b;
+
+  /* 强调色（只有一个） */
+  --accent: #3b5bdb;
+  --accent-hover: #3350c4;
+  --accent-soft: #eef1fd;
+
+  /* 语义色，只用在状态码这类地方 */
+  --green: #0f8a5f;
+  --amber: #b0670a;
+  --red: #d64545;
+
+  --radius: 8px;
+  --radius-lg: 10px;
+
+  --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+::selection {
+  background: #dbe2fb;
+}
+
+/* 滚动条做细一点，别抢视觉 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #dedcd6;
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c8c6bf;
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background-clip: content-box;
+}
+
+/* 输入框统一的聚焦样式，组件里不用重复写 */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+}
+
+/* 请求方法的配色，侧边栏和编辑区共用（所以放在全局） */
+.m-GET {
+  color: var(--green);
+}
+.m-POST {
+  color: var(--amber);
+}
+.m-PUT {
+  color: var(--accent);
+}
+.m-PATCH {
+  color: #7048b6;
+}
+.m-DELETE {
+  color: var(--red);
+}
+.m-HEAD,
+.m-OPTIONS {
+  color: var(--text-2);
+}

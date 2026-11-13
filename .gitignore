@@ -1,0 +1,15 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+
+# Rust / Tauri 编译产物
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# 系统与编辑器
+.DS_Store
+.vscode/
+.idea/
+*.log
