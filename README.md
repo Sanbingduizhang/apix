@@ -107,43 +107,58 @@ pnpm tauri build  # 打包，产物在 src-tauri/target/release/bundle
 
 ### 分支
 
-| 分支 | 用途 | 推上去会怎样 |
+| 分支 | 用途 | 能否直接 push |
 |---|---|---|
-| `main` | 发布分支，只接受 `develop` 的合并 | Actions 自动打 macOS + Windows 两个包 |
-| `develop` | 日常开发，随便提 | 同样自动编译，用来确认提交能不能过 |
+| `main` | 发布分支，只接受从 `develop` 合进来的 PR | **不能**，分支保护会拦 |
+| `develop` | 日常开发 | 能，随便提 |
+
+**推代码不会触发任何 CI**，打包只发生在打标签的那一刻，日常提交不消耗 Actions 额度。
+所以本地自己要过一遍类型检查：
 
 ```bash
-# 日常
 git switch develop
 git commit -am "feat: xxx"
-git push                 # CI 跑一遍，能编译就绿
-
-# 攒够了要发版
-git switch main
-git merge --no-ff develop -m "chore: 发布 v1.0.1"
-git push                 # 自动出包
+pnpm build            # vue-tsc 类型检查 + 构建，几秒钟
+git push
 ```
 
-### 两套工作流
+### main 的保护规则
 
-- **`build.yml`**：push 到 `main` / `develop`、或向它们提 PR 时触发。
-  先跑类型检查和前端构建（ubuntu，几十秒），过了再并行打 macOS arm64 与 Windows x64。
-  产物在本次运行的 **Artifacts** 里，保留 14 天。
-- **`release.yml`**：推 `v*` 标签时触发。打完直接建一个 **draft Release** 并把安装包挂上去，
-  你检查完点 Publish 即可。
+在 GitHub 仓库页面点：
 
-所以不需要在本地打包：**要最新的能跑版本看 Artifacts，要正式下载页就打标签。**
+> Settings → Branches → Add branch protection rule → 填 `main`
+
+勾这几项：
+
+- **Require a pull request before merging** —— Approval 数量填 1
+- **Block force pushes** —— 禁止强推覆盖历史
+- **Restrict deletions** —— 禁止删分支
+- Require status checks **不用勾**，因为没有配 CI 检查
+
+配好之后直接 `git push origin main` 会被拒，只能走：
+
+> Pull requests → New pull request → base: `main` ← compare: `develop` → Create → Merge
+
+### 只有一个工作流
+
+`release.yml`，**只在推 `v*` 标签时触发**：并行打 macOS arm64 与 Windows x64，
+然后建一个 draft Release 把安装包挂上去，你检查完点 Publish。
 
 ### 发一个正式版
 
 ```bash
-# 1. 版本号三处改成一致
+# 1. 在 develop 上把版本号改成一致（三处）
 #    package.json / src-tauri/tauri.conf.json / src-tauri/Cargo.toml
-# 2. 提交推送
-git switch main && git push
-# 3. 打标签推送，CI 自动打包并建 Release
-git tag -a v1.0.1 -m "apix v1.0.1"
-git push origin v1.0.1
+git switch develop
+git commit -am "chore: 版本号升到 1.1.0"
+git push
+
+# 2. 提 PR 合进 main（网页上操作），合并后本地同步
+git switch main && git pull
+
+# 3. 打标签推送，这时才触发打包
+git tag -a v1.1.0 -m "apix v1.1.0"
+git push origin v1.1.0
 ```
 
 标签推上去就不要再改，改了会让已发布的 Release 和代码对不上。
