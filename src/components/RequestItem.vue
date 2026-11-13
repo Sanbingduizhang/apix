@@ -44,11 +44,14 @@ function onContextMenu(event: MouseEvent) {
 </script>
 
 <template>
-  <!-- 缩进规则：根级接口和根目录的图标对齐，目录里的接口和父目录的图标对齐 -->
+  <!--
+    缩进用 margin 而不是 padding：这样 hover / 选中的底色从内容左侧开始，
+    不会一直顶到面板最左边，看起来才像"一行"而不是"一条通栏"。
+  -->
   <div
     class="item"
     :class="{ on: request.id === store.activeRequestId }"
-    :style="{ paddingLeft: `${depth === 0 ? 24 : 8 + depth * 16}px` }"
+    :style="{ marginLeft: `${depth === 0 ? 18 : 2 + depth * 16}px` }"
     @click="selectRequest(request.id)"
     @contextmenu.stop="onContextMenu"
   >
@@ -69,12 +72,12 @@ function onContextMenu(event: MouseEvent) {
     </span>
 
     <button class="del" title="删除" @click.stop="askRemove">
-      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
         <path
-          d="M2.5 3.5h7M4.6 3.5V2.2h2.8v1.3M4 3.5l.4 6h3.2l.4-6"
+          d="M2.8 4h8.4M5.4 4V2.6h3.2V4M4.6 4l.5 7.2h3.8L9.4 4"
           fill="none"
           stroke="currentColor"
-          stroke-width="1.2"
+          stroke-width="1.3"
           stroke-linecap="round"
           stroke-linejoin="round"
         />
@@ -90,7 +93,7 @@ function onContextMenu(event: MouseEvent) {
   align-items: center;
   gap: 9px;
   height: var(--h-row);
-  padding-right: 6px;
+  padding: 0 5px 0 8px;
   border-radius: var(--radius);
   cursor: pointer;
   transition: background 0.13s, box-shadow 0.13s;
@@ -100,13 +103,14 @@ function onContextMenu(event: MouseEvent) {
   background: var(--hover);
 }
 
+/* 选中：淡紫底 + 左侧一道主色，比白底在白色面板上明显得多 */
 .item.on {
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-1), inset 2.5px 0 0 0 var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 2.5px 0 0 0 var(--accent);
 }
 
 .item.on .label {
-  color: var(--text);
+  color: var(--accent);
   font-weight: 500;
 }
 
@@ -140,20 +144,22 @@ function onContextMenu(event: MouseEvent) {
   font-size: var(--font-sm);
 }
 
+/* 删除按钮：图标比之前大一圈，hover 时才浮现 */
 .del {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   color: var(--text-3);
   opacity: 0;
   transition: opacity 0.13s, color 0.13s, background 0.13s;
 }
 
-.item:hover .del {
+.item:hover .del,
+.item.on .del {
   opacity: 1;
 }
 

@@ -65,13 +65,21 @@ function onContextMenu(event: MouseEvent) {
     { label: '删除目录', danger: true, action: askRemove },
   ])
 }
+
+/** 目录右侧那个加号：不弹右键，直接选新建什么 */
+function openAddMenu(event: MouseEvent) {
+  openMenu(event, [
+    { label: '新建接口', action: () => addRequest(props.folder.id) },
+    { label: '新建子目录', action: () => addFolder(props.folder.id) },
+  ])
+}
 </script>
 
 <template>
   <div class="node">
     <div
       class="folder"
-      :style="{ paddingLeft: `${6 + depth * 16}px` }"
+      :style="{ marginLeft: `${depth * 16}px` }"
       @click="open = !open"
       @contextmenu.stop="onContextMenu"
     >
@@ -115,10 +123,17 @@ function onContextMenu(event: MouseEvent) {
       <span v-else class="name" @dblclick.stop="startRename">{{ folder.name }}</span>
 
       <span v-if="count" class="count">{{ count }}</span>
+
+      <!-- 悬停时出现的加号，直接往这个目录里加东西 -->
+      <button class="add" title="新建接口 / 子目录" @click.stop="openAddMenu">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      </button>
     </div>
 
-    <!-- 子级左侧一条虚线：位置取在子级内容左边 10px，视觉上从目录图标下方垂下来 -->
-    <div v-if="open" class="children" :style="{ '--guide': `${14 + depth * 16}px` }">
+    <!-- 子级左侧一条虚线：位置取在子级内容左边 9px，视觉上从目录图标下方垂下来 -->
+    <div v-if="open" class="children" :style="{ '--guide': `${9 + depth * 16}px` }">
       <FolderNode v-for="item in childFolders" :key="item.id" :folder="item" :depth="depth + 1" />
       <RequestItem v-for="item in childRequests" :key="item.id" :request="item" :depth="depth + 1" />
     </div>
@@ -131,7 +146,7 @@ function onContextMenu(event: MouseEvent) {
   align-items: center;
   gap: 6px;
   height: var(--h-row);
-  padding-right: 8px;
+  padding: 0 5px 0 8px;
   border-radius: var(--radius);
   color: var(--text-2);
   cursor: pointer;
@@ -193,6 +208,29 @@ function onContextMenu(event: MouseEvent) {
   color: var(--text-3);
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
+}
+
+/* 目录右侧的加号：平时藏起来，hover 才出现，不打扰看树 */
+.add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity 0.13s, background 0.13s, color 0.13s;
+}
+
+.folder:hover .add {
+  opacity: 1;
+}
+
+.add:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .rename {
