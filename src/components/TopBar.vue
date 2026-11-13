@@ -118,7 +118,7 @@ const emit = defineEmits<{ back: []; settings: [] }>()
 
 .icon-btn:hover {
   border-color: var(--border-strong);
-  background: var(--surface-solid);
+  background: var(--hover);
   color: var(--text);
   transform: translateY(-1px);
 }

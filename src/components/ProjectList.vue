@@ -157,9 +157,9 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
             </div>
 
             <div class="chips">
-              <span class="chip">{{ project.requests.length }} 接口</span>
-              <span class="chip">{{ project.folders.length }} 目录</span>
-              <span class="chip">{{ project.environments.length }} 环境</span>
+              <span class="chip api">{{ project.requests.length }} 接口</span>
+              <span class="chip folder">{{ project.folders.length }} 目录</span>
+              <span class="chip env">{{ project.environments.length }} 环境</span>
             </div>
           </div>
 
@@ -280,7 +280,7 @@ h1 {
   border: 1px solid transparent;
   border-radius: var(--radius-xl);
   /* 用极淡的同色相底区分项目，不用渐变 */
-  background: hsl(var(--h) 34% 97.6%);
+  background: hsl(var(--h) 30% 98.3%);
   box-shadow: var(--neu-out);
   text-align: left;
   cursor: pointer;
@@ -289,7 +289,7 @@ h1 {
 }
 
 [data-theme='dark'] .card {
-  background: hsl(var(--h) 8% 17.5%);
+  background: hsl(var(--h) 10% 16%);
 }
 
 /* 左上角的小色块，一眼认出是哪个项目 */
@@ -379,13 +379,38 @@ h1 {
   margin-top: 14px;
 }
 
+/* 三个小标签各用一个颜色，扫一眼就知道项目里有多少东西 */
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 4px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--surface-soft);
-  color: var(--text-2);
   font-size: var(--font-xs);
+}
+
+.chip::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chip.api {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chip.folder {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.chip.env {
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .card-foot {

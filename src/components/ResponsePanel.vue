@@ -338,9 +338,9 @@ async function copyContent() {
 }
 
 .switch button.on {
-  color: var(--text);
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-1);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 500;
 }
 
 .tab-count {

@@ -92,12 +92,18 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
   transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
 }
 
-.trigger:hover,
-.trigger.open {
+.trigger:hover {
   border-color: var(--border-strong);
-  background: var(--surface-solid);
+  background: var(--hover);
   color: var(--text);
   transform: translateY(-1px);
+}
+
+/* 展开时用主色淡底，和 hover 区分开 */
+.trigger.open {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .dot {

@@ -95,6 +95,12 @@ function save() {
   saveDraft()
 }
 
+/** 发送：如果还在设计态，先切回调试，不然看不到响应 */
+function sendNow() {
+  if (mode.value === 'design') mode.value = 'debug'
+  emit('send')
+}
+
 /** ⌘S / Ctrl+S 保存，避免肌肉记忆去按浏览器保存 */
 function onKeydown(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
@@ -146,7 +152,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         {{ dirty ? '保存' : '已保存' }}
       </button>
 
-      <button class="send" :disabled="sending" @click="emit('send')">
+      <button class="send" :disabled="sending" @click="sendNow">
         {{ sending ? '发送中' : '发送' }}
       </button>
     </div>
@@ -395,11 +401,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
+/* 调试 / 设计：主切换用实色，和下面的下划线页签拉开层次 */
 .mode-switch button.on {
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-1);
-  color: var(--text);
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-weight: 500;
+  box-shadow: var(--shadow-btn);
 }
 
 .spacer {
@@ -412,7 +419,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   font-size: var(--font-xs);
 }
 
-/* 表区做成一张卡片：内容有边界，不会白成一片 */
+/* 表区做成一张微微凹陷的卡片：内容有边界，也不会白成一片 */
 .pane {
   flex: 1;
   min-height: 0;
@@ -423,7 +430,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface-soft);
+  background: var(--neutral-soft);
 }
 
 /* ---- 继承的请求头 ---- */

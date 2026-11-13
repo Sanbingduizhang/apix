@@ -20,126 +20,127 @@
   --h-row: 34px; /* 列表行、表格行 */
 
   /* ---- 圆角 ---- */
-  --radius-sm: 8px;
-  --radius: 11px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius-sm: 9px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 
   /* ---- 浅色主题 ---- */
   color-scheme: light;
 
-  /* 底色用接近纸白的冷灰，不铺渐变；层次靠背景里那几团柔光和阴影撑 */
-  --bg: #dfe4ee;
-  /* 柔光统一在一个色系里（靛蓝 + 白），三团各显一个色就成了彩虹渐变，反而脏 */
-  --orb-1: #aab9ff;
-  --orb-2: #ffffff;
-  --arc: rgba(79, 107, 255, 0.13);
-  --dot: rgba(20, 22, 40, 0.06);
+  /* 底色用暖米白，不铺渐变；层次靠背景里那几团柔光和阴影撑 */
+  --bg: #f4ede5;
+  /* 柔光统一在暖色系里（杏 + 奶油），三个颜色各显一个就成了彩虹渐变，反而脏 */
+  --orb-1: #ffd9bd;
+  --orb-2: #fff6ea;
+  --arc: rgba(214, 141, 105, 0.18);
+  --dot: rgba(72, 52, 38, 0.055);
 
   /* 悬浮面板：半透明 + 模糊，靠 backdrop-filter 出玻璃感 */
-  --surface: rgba(255, 255, 255, 0.82);
-  --surface-solid: #ffffff;
-  --surface-soft: rgba(255, 255, 255, 0.5);
-  --field: rgba(255, 255, 255, 0.66);
-  --hover: rgba(20, 22, 40, 0.05);
-  --press: rgba(20, 22, 40, 0.09);
-  --border: rgba(20, 22, 40, 0.08);
-  --border-strong: rgba(20, 22, 40, 0.16);
+  --surface: rgba(255, 252, 248, 0.84);
+  --surface-solid: #fffdfa;
+  --surface-soft: rgba(255, 251, 245, 0.56);
+  --field: rgba(255, 251, 245, 0.72);
+  --hover: rgba(72, 52, 38, 0.055);
+  --press: rgba(72, 52, 38, 0.09);
+  --border: rgba(72, 52, 38, 0.09);
+  --border-strong: rgba(72, 52, 38, 0.17);
   /* 悬浮面板的描边：浅色主题下用淡墨色，深色主题下用白色发丝线 */
-  --border-glass: rgba(20, 22, 40, 0.09);
+  --border-glass: rgba(72, 52, 38, 0.075);
 
   /* 新拟物：左下暗、右上亮，制造"凸起"的错觉 */
-  --neu-out: 10px 10px 24px rgba(152, 166, 194, 0.5), -10px -10px 24px rgba(255, 255, 255, 0.95);
-  --neu-out-sm: 5px 5px 12px rgba(152, 166, 194, 0.42), -5px -5px 12px rgba(255, 255, 255, 0.92);
-  --neu-in: inset 3px 3px 8px rgba(152, 166, 194, 0.5), inset -3px -3px 8px rgba(255, 255, 255, 0.92);
+  --neu-out: 10px 10px 24px rgba(186, 161, 138, 0.38), -10px -10px 24px rgba(255, 255, 255, 0.95);
+  --neu-out-sm: 5px 5px 12px rgba(186, 161, 138, 0.32), -5px -5px 12px rgba(255, 255, 255, 0.9);
+  --neu-in: inset 3px 3px 8px rgba(186, 161, 138, 0.4), inset -3px -3px 8px rgba(255, 255, 255, 0.92);
 
-  --text: #15161d;
-  --text-2: #5b5d70;
-  --text-3: #9698aa;
+  --text: #2f2a25;
+  --text-2: #6d645b;
+  --text-3: #a3978a;
 
-  --accent: #4f6bff;
-  --accent-2: #8a5cff;
-  --accent-soft: rgba(79, 107, 255, 0.12);
+  /* 主色用了偏冷的柔紫，放在暖底上正好当对比，不发闷 */
+  --accent: #7b6cf6;
+  --accent-2: #c76bd9;
+  --accent-soft: rgba(123, 108, 246, 0.12);
   --accent-contrast: #ffffff;
 
-  --green: #0f9d63;
-  --amber: #b0670a;
-  --red: #e04a44;
-  --purple: #7a4fe0;
+  --green: #3f9d6f;
+  --amber: #c08430;
+  --red: #d4625c;
+  --purple: #8b5cd6;
 
-  --green-soft: rgba(15, 157, 99, 0.12);
-  --amber-soft: rgba(176, 103, 10, 0.12);
-  --red-soft: rgba(224, 74, 68, 0.12);
-  --neutral-soft: rgba(20, 22, 40, 0.06);
+  --green-soft: rgba(63, 157, 111, 0.13);
+  --amber-soft: rgba(192, 132, 48, 0.14);
+  --red-soft: rgba(212, 98, 92, 0.13);
+  --neutral-soft: rgba(72, 52, 38, 0.06);
 
-  --code-key: #45507a;
-  --code-punc: #a9abbd;
+  --code-key: #6d5a9b;
+  --code-punc: #b5a99b;
 
-  /* 阴影分三层：贴地的 1、悬浮的 2、弹窗的 3 */
-  --shadow-1: 0 1px 2px rgba(20, 22, 40, 0.06), 0 1px 1px rgba(20, 22, 40, 0.04);
-  --shadow-2: 0 10px 30px -12px rgba(20, 22, 40, 0.22), 0 2px 8px -4px rgba(20, 22, 40, 0.1);
-  --shadow-3: 0 32px 70px -28px rgba(20, 22, 40, 0.38), 0 10px 26px -12px rgba(20, 22, 40, 0.18);
-  --shadow-btn: 0 8px 20px -8px rgba(79, 107, 255, 0.65);
+  /* 阴影分三层：贴地的 1、悬浮的 2、弹窗的 3。统一带一点暖棕，不用纯黑 */
+  --shadow-1: 0 1px 2px rgba(72, 52, 38, 0.06), 0 1px 1px rgba(72, 52, 38, 0.04);
+  --shadow-2: 0 12px 32px -14px rgba(72, 52, 38, 0.26), 0 2px 8px -4px rgba(72, 52, 38, 0.08);
+  --shadow-3: 0 34px 72px -30px rgba(72, 52, 38, 0.34), 0 10px 26px -12px rgba(72, 52, 38, 0.14);
+  --shadow-btn: 0 10px 24px -10px rgba(123, 108, 246, 0.6);
   --inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --inset-field: inset 0 1px 2px rgba(20, 22, 40, 0.05);
+  --inset-field: inset 0 1px 2px rgba(72, 52, 38, 0.05);
 
-  --blur: blur(24px) saturate(170%);
+  --blur: blur(24px) saturate(150%);
 
   --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
   --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
 
-/* ---- 深色主题：同一批变量换一套值 ---- */
+/* ---- 深色主题：同一批变量换一套值（同样偏暖，不用冷黑） ---- */
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #14161d;
-  --orb-1: #2b3478;
-  --orb-2: #3a3172;
-  --arc: rgba(150, 172, 255, 0.1);
-  --dot: rgba(255, 255, 255, 0.05);
+  --bg: #1b1815;
+  --orb-1: #4d2f1f;
+  --orb-2: #3b2a33;
+  --arc: rgba(255, 195, 155, 0.12);
+  --dot: rgba(255, 255, 255, 0.045);
 
-  --surface: rgba(24, 26, 36, 0.76);
-  --surface-solid: #171922;
-  --surface-soft: rgba(255, 255, 255, 0.04);
+  --surface: rgba(42, 37, 32, 0.78);
+  --surface-solid: #262019;
+  --surface-soft: rgba(255, 255, 255, 0.045);
   --field: rgba(255, 255, 255, 0.05);
-  --hover: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.065);
   --press: rgba(255, 255, 255, 0.1);
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
-  --border-glass: rgba(255, 255, 255, 0.12);
+  --border-glass: rgba(255, 255, 255, 0.1);
 
-  /* 深色下的新拟物：暗面几乎是黑的，亮面只留一点点，太亮就脏了 */
-  --neu-out: 9px 9px 22px rgba(0, 0, 0, 0.62), -9px -9px 22px rgba(255, 255, 255, 0.035);
-  --neu-out-sm: 4px 4px 10px rgba(0, 0, 0, 0.55), -4px -4px 10px rgba(255, 255, 255, 0.03);
-  --neu-in: inset 3px 3px 7px rgba(0, 0, 0, 0.6), inset -3px -3px 7px rgba(255, 255, 255, 0.04);
+  /* 深色下的新拟物：暗面几乎是黑的，亮面只留一点点暖调，太亮就脏了 */
+  --neu-out: 9px 9px 22px rgba(0, 0, 0, 0.58), -9px -9px 22px rgba(255, 226, 200, 0.035);
+  --neu-out-sm: 4px 4px 10px rgba(0, 0, 0, 0.5), -4px -4px 10px rgba(255, 226, 200, 0.03);
+  --neu-in: inset 3px 3px 7px rgba(0, 0, 0, 0.55), inset -3px -3px 7px rgba(255, 226, 200, 0.04);
 
-  --text: #f1f2f7;
-  --text-2: #a2a5b6;
-  --text-3: #6d7085;
+  --text: #f4eee6;
+  --text-2: #b3a89c;
+  --text-3: #7f7468;
 
-  --accent: #7d92ff;
-  --accent-2: #a37dff;
-  --accent-soft: rgba(125, 146, 255, 0.16);
-  --accent-contrast: #0b0c12;
+  --accent: #9d8dff;
+  --accent-2: #e08bd8;
+  --accent-soft: rgba(157, 141, 255, 0.18);
+  --accent-contrast: #1a1420;
 
-  --green: #45d18b;
-  --amber: #e3a95f;
-  --red: #f0736f;
-  --purple: #b18cf0;
+  --green: #5cc98f;
+  --amber: #e0a865;
+  --red: #f07b74;
+  --purple: #b492f0;
 
-  --green-soft: rgba(69, 209, 139, 0.14);
-  --amber-soft: rgba(227, 169, 95, 0.14);
-  --red-soft: rgba(240, 115, 111, 0.14);
+  --green-soft: rgba(92, 201, 143, 0.14);
+  --amber-soft: rgba(224, 168, 101, 0.15);
+  --red-soft: rgba(240, 123, 116, 0.15);
   --neutral-soft: rgba(255, 255, 255, 0.07);
 
-  --code-key: #a9b6dc;
-  --code-punc: #5f6275;
+  --code-key: #b6a8dd;
+  --code-punc: #6b6157;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 12px 34px -14px rgba(0, 0, 0, 0.8), 0 2px 10px -4px rgba(0, 0, 0, 0.5);
-  --shadow-3: 0 36px 80px -30px rgba(0, 0, 0, 0.9), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
-  --shadow-btn: 0 8px 22px -8px rgba(125, 146, 255, 0.5);
+  --shadow-2: 0 12px 34px -14px rgba(0, 0, 0, 0.75), 0 2px 10px -4px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 36px 80px -30px rgba(0, 0, 0, 0.85), 0 12px 30px -14px rgba(0, 0, 0, 0.55);
+  --shadow-btn: 0 10px 24px -10px rgba(157, 141, 255, 0.45);
   --inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --inset-field: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
@@ -416,7 +417,7 @@ select:focus {
 }
 
 .line-tab.on {
-  color: var(--text);
+  color: var(--accent);
   font-weight: 500;
 }
 

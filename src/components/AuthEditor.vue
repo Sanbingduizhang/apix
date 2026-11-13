@@ -208,9 +208,9 @@ const preview = computed(() => {
 }
 
 .position button.on {
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-1);
-  color: var(--text);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .tip {
