@@ -78,9 +78,32 @@ async function copyBody() {
     <div class="content">
       <!-- 还没发过请求 -->
       <div v-if="!response && !sending" class="placeholder">
-        <p>发送请求后，响应会显示在这里</p>
+        <span class="ph-icon">
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+            <path
+              d="M4 13h13m0 0l-4.5-4.5M17 13l-4.5 4.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M20 5.5h3.5v15H20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              opacity="0.45"
+            />
+          </svg>
+        </span>
+        <p class="ph-title">还没有响应</p>
+        <p class="ph-sub">填好地址后点「发送」，状态码、耗时和返回内容都会显示在这里</p>
         <div class="kbd-row">
           <span class="kbd">⌘</span><span class="kbd">↵</span>
+          <span class="kbd-hint">发送</span>
         </div>
       </div>
 
@@ -220,26 +243,63 @@ async function copyBody() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--text-3);
   font-size: var(--font-sm);
 }
 
-.placeholder p {
+/* 空状态给个柔和的图标底，比一行小字有分量 */
+.ph-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--text-3);
+  box-shadow: var(--neu-out-sm);
+}
+
+.ph-title {
   margin: 0;
+  color: var(--text-2);
+  font-size: var(--font-md);
+  font-weight: 500;
+}
+
+.ph-sub {
+  max-width: 380px;
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  line-height: 1.7;
+  text-align: center;
 }
 
 .kbd-row {
   display: flex;
+  align-items: center;
   gap: 3px;
+  margin-top: 4px;
+}
+
+.kbd-hint {
+  margin-left: 6px;
+  color: var(--text-3);
+  font-size: var(--font-xs);
 }
 
 .kbd {
   display: inline-block;
-  min-width: 18px;
-  padding: 1px 4px;
+  min-width: 20px;
+  padding: 2px 5px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 5px;
+  background: var(--surface-solid);
+  box-shadow: 0 1px 0 var(--border);
   color: var(--text-2);
   font-size: 11px;
   text-align: center;

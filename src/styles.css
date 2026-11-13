@@ -28,9 +28,13 @@
   /* ---- 浅色主题 ---- */
   color-scheme: light;
 
-  --bg: #e8ecf7;
-  --glow-1: rgba(79, 107, 255, 0.34);
-  --glow-2: rgba(146, 92, 255, 0.26);
+  /* 底色用接近纸白的冷灰，不铺渐变；层次靠背景里那几团柔光和阴影撑 */
+  --bg: #dfe4ee;
+  /* 柔光统一在一个色系里（靛蓝 + 白），三团各显一个色就成了彩虹渐变，反而脏 */
+  --orb-1: #aab9ff;
+  --orb-2: #ffffff;
+  --arc: rgba(79, 107, 255, 0.13);
+  --dot: rgba(20, 22, 40, 0.06);
 
   /* 悬浮面板：半透明 + 模糊，靠 backdrop-filter 出玻璃感 */
   --surface: rgba(255, 255, 255, 0.82);
@@ -43,6 +47,11 @@
   --border-strong: rgba(20, 22, 40, 0.16);
   /* 悬浮面板的描边：浅色主题下用淡墨色，深色主题下用白色发丝线 */
   --border-glass: rgba(20, 22, 40, 0.09);
+
+  /* 新拟物：左下暗、右上亮，制造"凸起"的错觉 */
+  --neu-out: 10px 10px 24px rgba(152, 166, 194, 0.5), -10px -10px 24px rgba(255, 255, 255, 0.95);
+  --neu-out-sm: 5px 5px 12px rgba(152, 166, 194, 0.42), -5px -5px 12px rgba(255, 255, 255, 0.92);
+  --neu-in: inset 3px 3px 8px rgba(152, 166, 194, 0.5), inset -3px -3px 8px rgba(255, 255, 255, 0.92);
 
   --text: #15161d;
   --text-2: #5b5d70;
@@ -84,9 +93,11 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0a0b10;
-  --glow-1: rgba(79, 107, 255, 0.32);
-  --glow-2: rgba(146, 92, 255, 0.24);
+  --bg: #14161d;
+  --orb-1: #2b3478;
+  --orb-2: #3a3172;
+  --arc: rgba(150, 172, 255, 0.1);
+  --dot: rgba(255, 255, 255, 0.05);
 
   --surface: rgba(24, 26, 36, 0.76);
   --surface-solid: #171922;
@@ -97,6 +108,11 @@
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
   --border-glass: rgba(255, 255, 255, 0.12);
+
+  /* 深色下的新拟物：暗面几乎是黑的，亮面只留一点点，太亮就脏了 */
+  --neu-out: 9px 9px 22px rgba(0, 0, 0, 0.62), -9px -9px 22px rgba(255, 255, 255, 0.035);
+  --neu-out-sm: 4px 4px 10px rgba(0, 0, 0, 0.55), -4px -4px 10px rgba(255, 255, 255, 0.03);
+  --neu-in: inset 3px 3px 7px rgba(0, 0, 0, 0.6), inset -3px -3px 7px rgba(255, 255, 255, 0.04);
 
   --text: #f1f2f7;
   --text-2: #a2a5b6;
@@ -160,18 +176,128 @@ body,
   margin: 0;
 }
 
-/* 背景用两团模糊光斑撑出层次，面板浮在上面 */
+/* 背景：纯色底 + 一层极淡点阵 + 几团缓慢漂移的柔光（见 .ambient） */
 body {
   font-family: var(--sans);
   font-size: var(--font-md);
   line-height: 1.5;
   color: var(--text);
   background-color: var(--bg);
-  background-image: radial-gradient(900px 520px at 8% -12%, var(--glow-1), transparent 62%),
-    radial-gradient(760px 460px at 96% 4%, var(--glow-2), transparent 58%);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+}
+
+/* ---------------- 背景装饰 ----------------
+ * 不铺整块渐变，改成三个纯色圆 + 大半径模糊，慢慢漂移。
+ * 好处：有呼吸感，又不会像渐变那样把整个屏幕染成一块色。
+ */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient .orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.32;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.ambient .orb-1 {
+  width: 620px;
+  height: 620px;
+  top: -340px;
+  left: -280px;
+  background: var(--orb-1);
+  animation-name: drift-a;
+  animation-duration: 34s;
+}
+
+.ambient .orb-2 {
+  width: 520px;
+  height: 520px;
+  top: -320px;
+  right: -240px;
+  background: var(--orb-2);
+  opacity: 0.45;
+  animation-name: drift-b;
+  animation-duration: 43s;
+}
+
+/* 两道细弧线，缓慢转圈：背景里唯一的"动"，很轻，不会抢内容 */
+.ambient .arc {
+  position: absolute;
+  border: 1px solid var(--arc);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  animation: spin 64s linear infinite;
+}
+
+.ambient .arc-1 {
+  width: 640px;
+  height: 640px;
+  top: -210px;
+  right: -180px;
+}
+
+.ambient .arc-2 {
+  width: 380px;
+  height: 380px;
+  bottom: -120px;
+  left: -90px;
+  border-style: dashed;
+  animation-duration: 88s;
+  animation-direction: reverse;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(90px, 70px, 0) scale(1.12);
+  }
+}
+
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.06);
+  }
+  50% {
+    transform: translate3d(-110px, 90px, 0) scale(0.94);
+  }
+}
+
+/* 系统设了"减少动态效果"就全停掉 */
+@media (prefers-reduced-motion: reduce) {
+  .ambient .orb,
+  .ambient .arc {
+    animation: none;
+  }
+}
+
+/* 点阵：像纸的纹理，压在所有东西下面，非常淡 */
+.ambient .grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 20%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 20%, transparent 100%);
 }
 
 input,

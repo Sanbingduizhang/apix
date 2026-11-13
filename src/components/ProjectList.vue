@@ -24,11 +24,17 @@ const totalRequests = computed(() =>
   store.projects.reduce((sum, project) => sum + project.requests.length, 0),
 )
 
-/** 用项目 id 算一个稳定的色相（0-360），保证每次打开颜色一致 */
+/** 预设色相：从这组里挑，保证几个项目放在一起永远是搭的，不会冒出奇怪的色 */
+const HUES = [232, 268, 190, 338, 22, 152, 210, 300]
+
+/** 用项目 id 算一个稳定的色相，保证每次打开颜色一致 */
 function hueOf(id: string): number {
-  let hash = 7
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 360
-  return hash
+  let hash = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return HUES[Math.abs(hash) % HUES.length]
 }
 
 function enter(project: Project) {
@@ -81,7 +87,7 @@ async function askRemove(project: Project) {
     message: '项目里的接口、目录和环境变量会一起删除，无法恢复。',
     confirmText: '删除项目',
   })
-  if (ok) removeProject(project.id)
+  if (ok) removeProject(project)
 }
 
 function cardMenu(event: MouseEvent, project: Project) {
@@ -128,10 +134,9 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
           @click="enter(project)"
           @contextmenu.prevent="cardMenu($event, project)"
         >
-          <div class="card-glow" />
-
           <div class="card-body">
             <div class="card-top">
+              <span class="mark" />
               <input
                 v-if="renamingId === project.id"
                 v-model="renameDraft"
@@ -215,7 +220,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
   width: 11px;
   height: 11px;
   border-radius: 4px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   box-shadow: 0 2px 8px -2px var(--accent);
 }
 
@@ -263,47 +268,51 @@ h1 {
   gap: 18px;
 }
 
-/* ---- 项目卡片 ---- */
+/* ---- 项目卡片：新拟物（凸起），每个项目带一点自己的色调 ---- */
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 178px;
-  padding: 20px;
+  min-height: 186px;
+  padding: 22px;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-xl);
-  background: var(--surface);
-  backdrop-filter: var(--blur);
-  box-shadow: var(--shadow-2);
+  /* 用极淡的同色相底区分项目，不用渐变 */
+  background: hsl(var(--h) 34% 97.6%);
+  box-shadow: var(--neu-out);
   text-align: left;
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.18s,
-    border-color 0.18s;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.22s,
+    border-color 0.22s, background 0.22s;
 }
 
-/* 右上角一团同色系的光，让每个项目有自己的气质 */
-.card-glow {
-  position: absolute;
-  top: -70px;
-  right: -50px;
-  width: 190px;
-  height: 190px;
-  border-radius: 50%;
-  background: radial-gradient(circle, hsl(var(--h) 90% 62% / 0.34), transparent 66%);
-  pointer-events: none;
-  transition: opacity 0.2s, transform 0.3s;
+[data-theme='dark'] .card {
+  background: hsl(var(--h) 8% 17.5%);
+}
+
+/* 左上角的小色块，一眼认出是哪个项目 */
+.mark {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  border-radius: 3px;
+  background: hsl(var(--h) 62% 58%);
+  box-shadow: 0 0 0 3px hsl(var(--h) 62% 58% / 0.14);
 }
 
 .card:hover {
-  border-color: hsl(var(--h) 70% 62% / 0.4);
+  border-color: hsl(var(--h) 62% 58% / 0.34);
   box-shadow: var(--shadow-3);
   transform: translateY(-4px);
 }
 
-.card:hover .card-glow {
-  transform: scale(1.15);
+/* 按下时压回去一点，像真的按到实体按钮 */
+.card:active {
+  transform: translateY(-1px) scale(0.996);
+  box-shadow: var(--neu-out-sm);
 }
 
 .card-body {
@@ -436,26 +445,41 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-style: dashed;
-  border-color: var(--border-strong);
-  background: var(--surface-soft);
+  border: 1px dashed var(--border-strong);
+  background: transparent;
   color: var(--text-3);
   font-size: var(--font-md);
-  backdrop-filter: none;
-  box-shadow: none;
+  /* 凹进去：和凸起的项目卡形成对比，一眼看出这是"空位" */
+  box-shadow: var(--neu-in);
 }
 
 .card.new:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
-  transform: translateY(-2px);
+  transform: none;
 }
 
 .plus {
-  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-solid);
+  box-shadow: var(--neu-out-sm);
+  color: var(--text-2);
+  font-size: 21px;
   font-weight: 300;
   line-height: 1;
+  transition: color 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+
+.card.new:hover .plus {
+  color: var(--accent);
+  transform: scale(1.08);
+  box-shadow: var(--shadow-2);
 }
 
 .card.new.creating {
@@ -464,6 +488,7 @@ h1 {
   border-style: solid;
   border-color: var(--accent);
   background: var(--surface-solid);
+  box-shadow: var(--neu-out);
   cursor: default;
 }
 

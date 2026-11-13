@@ -52,6 +52,11 @@ const emit = defineEmits<{ back: []; settings: [] }>()
 
 <style scoped>
 .topbar {
+  /* 必须显式定位并抬高层级：
+     顶栏有 backdrop-filter 会自己形成一个层叠上下文，而下面的工作区也是同样处理的，
+     不指定 z-index 的话，环境/外观的下拉菜单会被下面那块面板整个盖住。 */
+  position: relative;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: 12px;
