@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /**
- * key-value 表格（请求头 / 表单 / 变量都用它）
+ * key-value 表格（请求头 / 变量 / 环境参数都用它）
  *
- * 传了 suggestions 就会出现"键名候选"：点输入框时弹出常用请求头，
- * 免得每次手打 Content-Type 拼错。
+ * 两个小贴心：
+ *   1. 传了 suggestions 就出现"键名候选"（常用请求头），点输入框弹出
+ *   2. 传了 variables，在值里输入 {{ 就会列出可用的变量，选中自动补全
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { KeyValueRow } from '../types'
+import type { VariableHint } from '../store/workspace'
 import { createKeyValueRow } from '../store/workspace'
 
 const props = withDefaults(
@@ -14,22 +16,45 @@ const props = withDefaults(
     rows: KeyValueRow[]
     /** 键名候选；不传就没有下拉 */
     suggestions?: string[]
+    /** 可用变量；传了才支持 {{ 补全 */
+    variables?: VariableHint[]
     keyPlaceholder?: string
     valuePlaceholder?: string
   }>(),
-  { suggestions: () => [], keyPlaceholder: '键名', valuePlaceholder: '值' },
+  {
+    suggestions: () => [],
+    variables: () => [],
+    keyPlaceholder: '键名',
+    valuePlaceholder: '值',
+  },
 )
 
-/** 当前正在编辑的行，-1 表示没有 */
-const focused = ref(-1)
-/** 候选浮层的位置（用 fixed 定位，避免被编辑区的滚动容器裁掉） */
-const anchor = ref({ left: 0, top: 0, width: 232, maxHeight: 240 })
+/** 当前正在编辑键名的行，-1 表示没有 */
+const focusedKey = ref(-1)
+const keyAnchor = ref({ left: 0, top: 0, width: 232, maxHeight: 240 })
 
-const activeRow = computed<KeyValueRow | null>(() =>
-  focused.value >= 0 ? (props.rows[focused.value] ?? null) : null,
+/** 变量补全的状态 */
+const varQuery = ref<string | null>(null)
+const varAnchor = ref({ left: 0, top: 0, width: 260, maxHeight: 220 })
+let activeValueInput: HTMLInputElement | null = null
+/** 当前正在编辑"值"的那一行 */
+const activeValueRow = ref<KeyValueRow | null>(null)
+
+const activeKeyRow = computed<KeyValueRow | null>(() =>
+  focusedKey.value >= 0 ? (props.rows[focusedKey.value] ?? null) : null,
 )
 
-const activeSuggestions = computed(() => (activeRow.value ? suggestionsFor(activeRow.value) : []))
+const keySuggestions = computed(() =>
+  activeKeyRow.value ? suggestionsFor(activeKeyRow.value) : [],
+)
+
+const varSuggestions = computed(() => {
+  if (varQuery.value === null) return []
+  const query = varQuery.value.toLowerCase()
+  return props.variables
+    .filter((item) => item.key.toLowerCase().includes(query))
+    .slice(0, 8)
+})
 
 function addRow() {
   props.rows.push(createKeyValueRow())
@@ -37,7 +62,8 @@ function addRow() {
 
 function removeRow(index: number) {
   props.rows.splice(index, 1)
-  focused.value = -1
+  focusedKey.value = -1
+  varQuery.value = null
 }
 
 /** 候选列表：按输入内容过滤，并且去掉别的行已经用过的键 */
@@ -50,32 +76,84 @@ function suggestionsFor(row: KeyValueRow): string[] {
     .slice(0, 8)
 }
 
-/** 聚焦时记下输入框位置，候选框贴着它下面弹出来 */
-function onFocus(event: FocusEvent, index: number) {
+function onKeyFocus(event: FocusEvent, index: number) {
   const rect = (event.target as HTMLElement).getBoundingClientRect()
-  focused.value = index
-  anchor.value = {
+  focusedKey.value = index
+  keyAnchor.value = {
     left: rect.left,
-    top: rect.bottom + 3,
+    top: rect.bottom + 4,
     width: Math.max(232, rect.width),
     maxHeight: Math.max(120, window.innerHeight - rect.bottom - 16),
   }
 }
 
-/** 选中候选（mousedown.prevent 保证输入框不会先失焦） */
-function pick(row: KeyValueRow, value: string) {
+function pickKey(row: KeyValueRow, value: string) {
   row.key = value
-  focused.value = -1
+  focusedKey.value = -1
 }
 
-/** 页面一滚动，位置就不准了，直接收起 */
+/** 值输入框获得焦点：记下这一行和这个元素，后面补全要用 */
+function onValueFocus(event: FocusEvent, row: KeyValueRow) {
+  activeValueInput = event.target as HTMLInputElement
+  activeValueRow.value = row
+  focusedKey.value = -1
+}
+
+/** 值里输入 {{ 时，把光标前的片段当作变量前缀来筛选 */
+function onValueInput(event: Event, row: KeyValueRow) {
+  const input = event.target as HTMLInputElement
+  activeValueInput = input
+  activeValueRow.value = row
+
+  const caret = input.selectionStart ?? input.value.length
+  const before = input.value.slice(0, caret)
+  const match = before.match(/\{\{([\w.-]*)$/)
+
+  if (!match || !props.variables.length) {
+    varQuery.value = null
+    return
+  }
+
+  varQuery.value = match[1]
+  const rect = input.getBoundingClientRect()
+  varAnchor.value = {
+    left: rect.left,
+    top: rect.bottom + 4,
+    width: Math.max(260, rect.width),
+    maxHeight: Math.max(120, window.innerHeight - rect.bottom - 16),
+  }
+}
+
+/** 把变量名包成 {{名字}}，模板里直接写会被当成插值，所以用函数生成 */
+function wrapVar(key: string) {
+  return `{{${key}}}`
+}
+
+/** 选中变量后，把光标前的 {{xxx 替换成完整的 {{名字}} */
+function pickVariable(row: KeyValueRow, name: string) {
+  const input = activeValueInput
+  if (!input) return
+
+  const caret = input.selectionStart ?? input.value.length
+  const before = input.value.slice(0, caret).replace(/\{\{([\w.-]*)$/, `{{${name}}}`)
+  const after = input.value.slice(caret)
+  row.value = before + after
+  varQuery.value = null
+
+  nextTick(() => {
+    input.focus()
+    input.selectionStart = input.selectionEnd = before.length
+  })
+}
+
+/** 页面一滚动，浮层位置就不准了，直接收起 */
 function onScroll() {
-  if (focused.value >= 0) focused.value = -1
+  focusedKey.value = -1
+  varQuery.value = null
 }
 
 onMounted(() => window.addEventListener('scroll', onScroll, true))
 onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
-
 </script>
 
 <template>
@@ -90,49 +168,85 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
     <div v-for="(row, index) in rows" :key="row.id" class="row">
       <input v-model="row.enabled" type="checkbox" class="check" />
 
-      <div class="key-cell">
-        <input
-          v-model="row.key"
-          class="cell mono"
-          :placeholder="keyPlaceholder"
-          spellcheck="false"
-          @focus="onFocus($event, index)"
-          @blur="focused = -1"
-        />
-      </div>
+      <input
+        v-model="row.key"
+        class="cell mono"
+        :placeholder="keyPlaceholder"
+        spellcheck="false"
+        @focus="onKeyFocus($event, index)"
+        @blur="focusedKey = -1"
+      />
 
       <input
         v-model="row.value"
         class="cell mono"
         :placeholder="valuePlaceholder"
         spellcheck="false"
-        @focus="focused = -1"
+        @focus="onValueFocus($event, row)"
+        @input="onValueInput($event, row)"
+        @blur="varQuery = null"
       />
 
-      <button class="remove" title="删除这一行" @click="removeRow(index)">×</button>
+      <button class="remove" title="删除这一行" @click="removeRow(index)">
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path
+            d="M2.5 3.5h7M4.6 3.5V2.2h2.8v1.3M4 3.5l.4 6h3.2l.4-6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
     </div>
 
     <button class="add" @click="addRow">+ 添加一行</button>
 
-    <!-- 候选浮层拆到 body 上，才不会被外面的滚动容器裁掉 -->
+    <!-- 键名候选 -->
     <Teleport to="body">
       <div
-        v-if="activeSuggestions.length"
-        class="suggest"
+        v-if="keySuggestions.length"
+        class="popover"
         :style="{
-          left: `${anchor.left}px`,
-          top: `${anchor.top}px`,
-          width: `${anchor.width}px`,
-          maxHeight: `${anchor.maxHeight}px`,
+          left: `${keyAnchor.left}px`,
+          top: `${keyAnchor.top}px`,
+          width: `${keyAnchor.width}px`,
+          maxHeight: `${keyAnchor.maxHeight}px`,
         }"
       >
         <button
-          v-for="item in activeSuggestions"
+          v-for="item in keySuggestions"
           :key="item"
-          class="suggest-item"
-          @mousedown.prevent="activeRow && pick(activeRow, item)"
+          class="popover-item"
+          @mousedown.prevent="activeKeyRow && pickKey(activeKeyRow, item)"
         >
           {{ item }}
+        </button>
+      </div>
+    </Teleport>
+
+    <!-- 变量补全 -->
+    <Teleport to="body">
+      <div
+        v-if="varSuggestions.length"
+        class="popover"
+        :style="{
+          left: `${varAnchor.left}px`,
+          top: `${varAnchor.top}px`,
+          width: `${varAnchor.width}px`,
+          maxHeight: `${varAnchor.maxHeight}px`,
+        }"
+      >
+        <button
+          v-for="item in varSuggestions"
+          :key="item.key"
+          class="popover-item var"
+          @mousedown.prevent="activeValueRow && pickVariable(activeValueRow, item.key)"
+        >
+          <span class="var-key mono">{{ wrapVar(item.key) }}</span>
+          <span class="var-value">{{ item.value || '（空）' }}</span>
+          <span class="var-source">{{ item.source }}</span>
         </button>
       </div>
     </Teleport>
@@ -147,12 +261,13 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 
 .row {
   display: grid;
-  grid-template-columns: 16px 1fr 1.5fr 22px;
+  grid-template-columns: 16px 1fr 1.5fr 24px;
   align-items: center;
   gap: 10px;
-  height: 32px;
+  height: var(--h-row);
   padding: 0 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
 }
 
 .row:hover {
@@ -160,9 +275,9 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 }
 
 .head {
-  height: 24px;
+  height: 26px;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 
 .head:hover {
@@ -170,25 +285,20 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 }
 
 .check {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   accent-color: var(--accent);
   cursor: pointer;
 }
 
-.key-cell {
-  position: relative;
-  min-width: 0;
-}
-
 .cell {
   width: 100%;
-  height: 26px;
-  padding: 0 6px;
+  height: 30px;
+  padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
 }
 
 .cell:hover {
@@ -197,50 +307,25 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 
 .cell:focus {
   border-color: var(--accent);
-  background: var(--surface);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .mono {
   font-family: var(--mono);
-  font-size: 12.5px;
-}
-
-/* 用 fixed 定位，坐标由 JS 按输入框位置算 */
-.suggest {
-  position: fixed;
-  z-index: 95;
-  overflow: auto;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-pop);
-}
-
-.suggest-item {
-  display: block;
-  width: 100%;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-family: var(--mono);
-  font-size: 12px;
-  text-align: left;
-}
-
-.suggest-item:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
+  font-size: var(--font-sm);
 }
 
 .remove {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
   color: var(--text-3);
-  font-size: 15px;
-  line-height: 1;
   opacity: 0;
-  transition: opacity 0.12s, color 0.12s;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
 }
 
 .row:hover .remove {
@@ -248,20 +333,79 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 }
 
 .remove:hover {
+  background: var(--red-soft);
   color: var(--red);
 }
 
 .add {
   align-self: flex-start;
   margin: 6px 0 0 26px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--font-sm);
+  transition: color 0.12s, background 0.12s;
 }
 
 .add:hover {
-  color: var(--accent);
   background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* 两个浮层共用同一套样式 */
+.popover {
+  position: fixed;
+  z-index: 95;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-3);
+}
+
+.popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  text-align: left;
+}
+
+.popover-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.var {
+  font-family: var(--sans);
+}
+
+.var-key {
+  color: var(--code-key);
+  font-size: var(--font-sm);
+}
+
+.var-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.var-source {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--neutral-soft);
+  color: var(--text-3);
+  font-size: 10.5px;
 }
 </style>

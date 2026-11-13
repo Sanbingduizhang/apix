@@ -109,7 +109,6 @@ async function copyBody() {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--surface);
 }
 
 .bar {
@@ -117,7 +116,7 @@ async function copyBody() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 40px;
+  height: 50px;
   padding: 0 18px;
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
@@ -126,16 +125,16 @@ async function copyBody() {
 .status-area {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
 }
 
 .status {
-  padding: 1px 8px;
-  border-radius: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
   font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-sm);
+  font-weight: 600;
 }
 
 .status.ok {
@@ -160,7 +159,7 @@ async function copyBody() {
 
 .muted {
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 
 .sep {
@@ -175,31 +174,36 @@ async function copyBody() {
 
 .switch {
   display: flex;
-  padding: 2px;
-  border-radius: 7px;
-  background: var(--pill);
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--neutral-soft);
 }
 
 .switch button {
-  padding: 3px 10px;
-  border-radius: 5px;
+  padding: 4px 12px;
+  border-radius: 7px;
   color: var(--text-2);
-  font-size: 12px;
-  transition: background 0.12s, color 0.12s;
+  font-size: var(--font-sm);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .switch button.on {
   color: var(--text);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-1);
 }
 
 .copy {
+  padding: 4px 10px;
+  border-radius: 7px;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--font-sm);
+  transition: color 0.14s, background 0.14s;
 }
 
 .copy:hover {
+  background: var(--hover);
   color: var(--accent);
 }
 
@@ -207,7 +211,7 @@ async function copyBody() {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 14px 18px 24px;
+  padding: 16px 18px 26px;
 }
 
 .placeholder {
@@ -218,7 +222,7 @@ async function copyBody() {
   justify-content: center;
   gap: 10px;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
 }
 
 .placeholder p {
@@ -251,7 +255,7 @@ async function copyBody() {
 .error-title {
   margin: 0 0 4px;
   color: var(--red);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
   font-weight: 500;
 }
 
@@ -259,7 +263,7 @@ async function copyBody() {
   margin: 0;
   color: var(--text-2);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--font-sm);
   line-height: 1.6;
   word-break: break-all;
 }
@@ -272,12 +276,12 @@ async function copyBody() {
 
 .h-row {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 16px;
   padding: 4px 6px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--font-sm);
   line-height: 1.6;
 }
 

@@ -136,12 +136,13 @@ function needsReselect(row: FormRow): boolean {
 
 .row {
   display: grid;
-  grid-template-columns: 16px minmax(90px, 1fr) 46px minmax(120px, 1.4fr) 22px;
+  grid-template-columns: 16px minmax(90px, 1fr) 50px minmax(120px, 1.4fr) 24px;
   align-items: center;
   gap: 10px;
-  height: 32px;
+  height: var(--h-row);
   padding: 0 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
 }
 
 .row:hover {
@@ -149,9 +150,9 @@ function needsReselect(row: FormRow): boolean {
 }
 
 .head {
-  height: 24px;
+  height: 26px;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--font-xs);
 }
 
 .head:hover {
@@ -159,20 +160,20 @@ function needsReselect(row: FormRow): boolean {
 }
 
 .check {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   accent-color: var(--accent);
   cursor: pointer;
 }
 
 .cell {
   width: 100%;
-  height: 26px;
-  padding: 0 6px;
+  height: 30px;
+  padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
 }
 
 .cell:hover {
@@ -181,21 +182,22 @@ function needsReselect(row: FormRow): boolean {
 
 .cell:focus {
   border-color: var(--accent);
-  background: var(--surface);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .mono {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
 }
 
 .type {
-  height: 22px;
+  height: 24px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--text-3);
-  font-size: 11px;
-  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  font-size: var(--font-xs);
+  transition: color 0.14s, border-color 0.14s, background 0.14s;
 }
 
 .type:hover {
@@ -221,13 +223,13 @@ function needsReselect(row: FormRow): boolean {
   align-items: center;
   gap: 7px;
   width: 100%;
-  height: 26px;
-  padding: 0 8px;
+  height: 30px;
+  padding: 0 10px;
   border: 1px dashed var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
-  font-size: 12px;
-  transition: border-color 0.12s, color 0.12s;
+  font-size: var(--font-sm);
+  transition: border-color 0.14s, color 0.14s, background 0.14s;
 }
 
 .file:hover {
@@ -263,14 +265,17 @@ function needsReselect(row: FormRow): boolean {
 }
 
 .remove {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
   color: var(--text-3);
   font-size: 15px;
   line-height: 1;
   opacity: 0;
-  transition: opacity 0.12s, color 0.12s;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
 }
 
 .row:hover .remove {

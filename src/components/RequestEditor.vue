@@ -2,11 +2,12 @@
 /**
  * 请求编辑区：方法 + 地址 + 请求头 / 请求体
  *
- * 直接修改 props.request 上的字段（它是 store 里的响应式对象），改完自动存盘，
- * 所以不需要向父组件抛一堆 v-model 事件。
+ * 直接修改 props.request 上的字段（它是 store 里的响应式对象），改完自动存盘。
+ * 请求头页签下半部分会列出"继承的请求头"：来自全局参数和环境参数，随请求一起发出去。
  */
 import { computed, ref } from 'vue'
 import type { ApiRequest, BodyType } from '../types'
+import { availableVariables, effectiveHeaders } from '../store/workspace'
 import KeyValueEditor from './KeyValueEditor.vue'
 import FormEditor from './FormEditor.vue'
 import MethodSelect from './MethodSelect.vue'
@@ -44,9 +45,10 @@ const HEADER_SUGGESTIONS = [
 const tab = ref<'headers' | 'body'>('headers')
 const formatError = ref('')
 
-const headerCount = computed(
-  () => props.request.headers.filter((h) => h.enabled && h.key.trim()).length,
-)
+/** 这个请求最终会带上的头（含继承），用来算数量和展示 */
+const mergedHeaders = computed(() => effectiveHeaders(props.request))
+const inherited = computed(() => mergedHeaders.value.filter((item) => item.source !== '请求'))
+const variables = computed(() => availableVariables())
 
 const bodyPlaceholder = computed(() =>
   props.request.bodyType === 'json' ? '{\n  "name": "apix"\n}' : '请求体内容…',
@@ -88,7 +90,7 @@ function beautify() {
     <div class="tabs">
       <div class="tab-group">
         <button class="tab" :class="{ on: tab === 'headers' }" @click="tab = 'headers'">
-          请求头<span v-if="headerCount" class="count">{{ headerCount }}</span>
+          请求头<span v-if="mergedHeaders.length" class="count">{{ mergedHeaders.length }}</span>
         </button>
         <button class="tab" :class="{ on: tab === 'body' }" @click="tab = 'body'">
           请求体<span v-if="request.bodyType !== 'none'" class="dot" />
@@ -107,7 +109,6 @@ function beautify() {
           {{ item.label }}
         </button>
 
-        <!-- 只有 JSON 才需要格式化 -->
         <template v-if="request.bodyType === 'json'">
           <span class="divider" />
           <button class="text-btn" @click="beautify">格式化</button>
@@ -116,13 +117,34 @@ function beautify() {
     </div>
 
     <div class="pane">
-      <KeyValueEditor
-        v-if="tab === 'headers'"
-        :rows="request.headers"
-        :suggestions="HEADER_SUGGESTIONS"
-        key-placeholder="键名"
-        value-placeholder="值"
-      />
+      <template v-if="tab === 'headers'">
+        <KeyValueEditor
+          :rows="request.headers"
+          :suggestions="HEADER_SUGGESTIONS"
+          :variables="variables"
+          key-placeholder="键名"
+          value-placeholder="值，支持 {{变量}}"
+        />
+
+        <!-- 继承来的请求头：只读，让你清楚这次请求到底带了什么 -->
+        <section class="inherited">
+          <p class="sec-title">
+            继承的请求头
+            <span>来自全局参数 / 环境参数，发送时自动带上</span>
+          </p>
+
+          <div v-if="inherited.length" class="inh-list">
+            <div v-for="item in inherited" :key="item.key" class="inh-row">
+              <span class="inh-key">{{ item.key }}</span>
+              <span class="inh-value">{{ item.value || '（空）' }}</span>
+              <span class="inh-source" :class="item.source === '环境' ? 'env' : 'global'">
+                {{ item.source }}
+              </span>
+            </div>
+          </div>
+          <p v-else class="inh-empty">还没有配置全局或环境参数</p>
+        </section>
+      </template>
 
       <template v-else>
         <FormEditor v-if="request.bodyType === 'form'" :rows="request.form" />
@@ -146,55 +168,61 @@ function beautify() {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--surface);
 }
 
 .bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  padding: 14px 18px;
   flex: 0 0 auto;
 }
 
 .url {
   flex: 1;
-  height: 34px;
-  padding: 0 12px;
+  height: var(--h-ctl);
+  padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--field);
   font-family: var(--mono);
-  font-size: 12.5px;
-  transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
+  font-size: var(--font-sm);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
 .url:focus {
   border-color: var(--accent);
-  background: var(--surface);
-  box-shadow: 0 0 0 3px rgb(59 91 219 / 12%);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .send {
   flex: 0 0 auto;
-  height: 34px;
-  padding: 0 20px;
-  border-radius: 7px;
-  background: var(--accent);
+  height: var(--h-ctl);
+  padding: 0 24px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: var(--shadow-btn), var(--inset-top);
   color: var(--accent-contrast);
-  font-size: 13px;
-  font-weight: 500;
-  transition: background 0.12s, opacity 0.12s;
+  font-size: var(--font-md);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: transform 0.15s, filter 0.15s, opacity 0.15s;
 }
 
 .send:hover:not(:disabled) {
-  background: var(--accent-hover);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.send:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .send:disabled {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: default;
+  box-shadow: none;
 }
 
 .tabs {
@@ -202,49 +230,50 @@ function beautify() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 40px;
-  padding: 0 18px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 18px 10px;
   flex: 0 0 auto;
 }
 
 .tab-group {
   display: flex;
-  gap: 2px;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius);
+  background: var(--neutral-soft);
 }
 
 .tab {
   display: flex;
   align-items: center;
-  height: 27px;
-  padding: 0 11px;
-  border-radius: 6px;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
-  font-size: 12.5px;
-  transition: background 0.12s, color 0.12s;
+  font-size: var(--font-sm);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .tab:hover {
-  background: var(--hover);
   color: var(--text);
 }
 
 .tab.on {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-1);
+  color: var(--text);
   font-weight: 500;
 }
 
 .count {
   margin-left: 5px;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-weight: 400;
 }
 
 .dot {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   margin-left: 5px;
   border-radius: 50%;
   background: var(--accent);
@@ -253,13 +282,13 @@ function beautify() {
 .body-tools {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .text-btn {
   color: var(--text-3);
-  font-size: 12px;
-  transition: color 0.12s;
+  font-size: var(--font-sm);
+  transition: color 0.14s;
 }
 
 .text-btn:hover {
@@ -273,13 +302,13 @@ function beautify() {
 
 .divider {
   width: 1px;
-  height: 12px;
+  height: 13px;
   background: var(--border);
 }
 
 .format-error {
   color: var(--red);
-  font-size: 11.5px;
+  font-size: var(--font-xs);
 }
 
 .pane {
@@ -288,32 +317,110 @@ function beautify() {
   display: flex;
   flex-direction: column;
   overflow: auto;
-  padding: 12px 18px 18px;
+  padding: 4px 18px 18px;
 }
 
 .body-input {
   flex: 1;
   min-height: 120px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--field);
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.7;
+  font-size: var(--font-sm);
+  line-height: 1.75;
   resize: none;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .body-input:focus {
   border-color: var(--accent);
-  background: var(--surface);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* ---- 继承的请求头 ---- */
+.inherited {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.sec-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px 4px;
+  color: var(--text-2);
+  font-size: var(--font-sm);
+  font-weight: 500;
+}
+
+.sec-title span {
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  font-weight: 400;
+}
+
+.inh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inh-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr auto;
+  align-items: center;
+  gap: 12px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+}
+
+.inh-key {
+  color: var(--code-key);
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+}
+
+.inh-value {
+  overflow: hidden;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inh-source {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--font-xs);
+}
+
+.inh-source.global {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.inh-source.env {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.inh-empty {
+  margin: 0 4px;
+  color: var(--text-3);
+  font-size: var(--font-xs);
 }
 
 .empty {
-  margin: 22px 0;
+  margin: 26px 0;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
   text-align: center;
 }
 </style>

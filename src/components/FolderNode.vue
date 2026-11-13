@@ -16,6 +16,7 @@ import {
   renameFolder,
 } from '../store/workspace'
 import { openMenu } from '../store/contextMenu'
+import { askConfirm } from '../store/confirm'
 import RequestItem from './RequestItem.vue'
 
 const props = defineProps<{ folder: Folder; depth: number }>()
@@ -45,11 +46,14 @@ function finishRename() {
   renaming.value = false
 }
 
-function askRemove() {
-  const message = count.value
-    ? `删除目录「${props.folder.name}」？里面的 ${count.value} 个接口会一起删除。`
-    : `删除目录「${props.folder.name}」？`
-  if (confirm(message)) removeFolder(props.folder.id)
+async function askRemove() {
+  const ok = await askConfirm({
+    title: `删除目录「${props.folder.name}」？`,
+    message: count.value
+      ? `里面的子目录和 ${count.value} 个接口会一起删除，无法恢复。`
+      : '目录里的内容会一起删除，无法恢复。',
+  })
+  if (ok) removeFolder(props.folder.id)
 }
 
 function onContextMenu(event: MouseEvent) {
@@ -67,13 +71,13 @@ function onContextMenu(event: MouseEvent) {
   <div>
     <div
       class="folder"
-      :style="{ paddingLeft: `${6 + depth * 15}px` }"
+      :style="{ paddingLeft: `${8 + depth * 16}px` }"
       @click="open = !open"
       @contextmenu.stop="onContextMenu"
     >
-      <svg class="chevron" :class="{ open }" width="10" height="10" viewBox="0 0 10 10">
+      <svg class="chevron" :class="{ open }" width="12" height="12" viewBox="0 0 12 12">
         <path
-          d="M3.5 2l3 3-3 3"
+          d="M4.4 2.6L7.8 6l-3.4 3.4"
           fill="none"
           stroke="currentColor"
           stroke-width="1.4"
@@ -98,18 +102,8 @@ function onContextMenu(event: MouseEvent) {
     </div>
 
     <template v-if="open">
-      <FolderNode
-        v-for="item in childFolders"
-        :key="item.id"
-        :folder="item"
-        :depth="depth + 1"
-      />
-      <RequestItem
-        v-for="item in childRequests"
-        :key="item.id"
-        :request="item"
-        :depth="depth + 1"
-      />
+      <FolderNode v-for="item in childFolders" :key="item.id" :folder="item" :depth="depth + 1" />
+      <RequestItem v-for="item in childRequests" :key="item.id" :request="item" :depth="depth + 1" />
     </template>
   </div>
 </template>
@@ -119,22 +113,24 @@ function onContextMenu(event: MouseEvent) {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
-  padding-right: 6px;
-  border-radius: 6px;
+  height: var(--h-row);
+  padding-right: 8px;
+  border-radius: var(--radius);
   color: var(--text-2);
   cursor: pointer;
   user-select: none;
+  transition: background 0.13s, color 0.13s;
 }
 
 .folder:hover {
   background: var(--hover);
+  color: var(--text);
 }
 
 .chevron {
   flex: 0 0 auto;
   color: var(--text-3);
-  transition: transform 0.12s;
+  transition: transform 0.16s ease;
 }
 
 .chevron.open {
@@ -145,24 +141,26 @@ function onContextMenu(event: MouseEvent) {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: var(--font-sm);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .count {
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--font-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .rename {
   flex: 1;
   min-width: 0;
-  height: 22px;
-  padding: 0 4px;
+  height: 24px;
+  padding: 0 6px;
   border: 1px solid var(--accent);
-  border-radius: 4px;
-  background: var(--surface);
-  font-size: 12.5px;
+  border-radius: 6px;
+  background: var(--surface-solid);
+  font-size: var(--font-sm);
 }
 </style>

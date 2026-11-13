@@ -13,13 +13,9 @@ import RequestItem from './RequestItem.vue'
 
 const keyword = ref('')
 
-/** 根目录下的节点 */
 const rootFolders = computed(() => (activeProject.value?.folders ?? []).filter((f) => !f.parentId))
-const rootRequests = computed(() =>
-  (activeProject.value?.requests ?? []).filter((r) => !r.folderId),
-)
+const rootRequests = computed(() => (activeProject.value?.requests ?? []).filter((r) => !r.folderId))
 
-/** 搜索结果（按名称或地址匹配） */
 const matches = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
   if (!kw) return []
@@ -32,7 +28,6 @@ const isEmpty = computed(
   () => !rootFolders.value.length && !rootRequests.value.length && !keyword.value.trim(),
 )
 
-/** 工具栏的 + 号：新建接口或目录 */
 function onAdd(event: MouseEvent) {
   openMenu(event, [
     { label: '新建接口', action: () => addRequest(null) },
@@ -40,7 +35,6 @@ function onAdd(event: MouseEvent) {
   ])
 }
 
-/** 空白处右键 */
 function onBlankMenu(event: MouseEvent) {
   openMenu(event, [
     { label: '新建接口', action: () => addRequest(null) },
@@ -53,27 +47,29 @@ function onBlankMenu(event: MouseEvent) {
   <aside class="sidebar">
     <div class="toolbar">
       <div class="search">
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-          <circle cx="5" cy="5" r="3.4" fill="none" stroke="currentColor" stroke-width="1.2" />
-          <path d="M7.6 7.6L10 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+        <svg width="13" height="13" viewBox="0 0 12 12" aria-hidden="true">
+          <circle cx="5" cy="5" r="3.4" fill="none" stroke="currentColor" stroke-width="1.3" />
+          <path d="M7.6 7.6L10 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
         </svg>
         <input v-model="keyword" placeholder="搜索接口" spellcheck="false" />
       </div>
-      <button class="add" title="新建接口 / 目录" @click="onAdd">+</button>
+      <button class="add" title="新建接口 / 目录" @click="onAdd">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <path d="M7 2.6v8.8M2.6 7h8.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      </button>
     </div>
 
     <div class="tree" @contextmenu.prevent="onBlankMenu">
-      <!-- 搜索时摊平显示 -->
       <template v-if="keyword.trim()">
         <RequestItem v-for="item in matches" :key="item.id" :request="item" :depth="0" />
         <p v-if="!matches.length" class="empty">没有匹配的接口</p>
       </template>
 
-      <!-- 平时显示目录树 -->
       <template v-else>
         <FolderNode v-for="item in rootFolders" :key="item.id" :folder="item" :depth="0" />
         <RequestItem v-for="item in rootRequests" :key="item.id" :request="item" :depth="0" />
-        <p v-if="isEmpty" class="empty">右键或点 + 新建接口 / 目录</p>
+        <p v-if="isEmpty" class="empty">右键或点 +<br />新建接口 / 目录</p>
       </template>
     </div>
   </aside>
@@ -81,38 +77,45 @@ function onBlankMenu(event: MouseEvent) {
 
 <style scoped>
 .sidebar {
-  flex: 0 0 258px;
-  width: 258px;
+  flex: 0 0 272px;
+  width: 272px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--border);
-  background: var(--sidebar-bg);
+  padding: 12px 10px 10px;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-2);
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 10px 6px 12px;
+  padding: 0 2px 8px;
 }
 
 .search {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   flex: 1;
   min-width: 0;
-  padding: 0 8px;
-  height: 28px;
+  height: 34px;
+  padding: 0 10px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius);
+  background: var(--field);
   color: var(--text-3);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .search:focus-within {
-  border-color: var(--border);
-  background: var(--surface);
+  border-color: var(--accent);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .search input {
@@ -120,37 +123,39 @@ function onBlankMenu(event: MouseEvent) {
   min-width: 0;
   border: none;
   background: transparent;
-  font-size: 12.5px;
+  font-size: var(--font-sm);
 }
 
 .add {
-  flex: 0 0 26px;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
   color: var(--text-2);
-  font-size: 17px;
-  line-height: 1;
-  transition: color 0.12s, background 0.12s;
+  transition: color 0.15s, background 0.15s, transform 0.15s;
 }
 
 .add:hover {
-  color: var(--accent);
   background: var(--accent-soft);
+  color: var(--accent);
+  transform: rotate(90deg);
 }
 
 .tree {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 4px 8px 16px;
+  padding: 2px;
 }
 
 .empty {
-  margin: 18px 8px;
+  margin: 28px 10px;
   color: var(--text-3);
-  font-size: 12px;
-  line-height: 1.7;
+  font-size: var(--font-sm);
+  line-height: 1.8;
   text-align: center;
 }
 </style>

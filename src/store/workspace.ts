@@ -40,9 +40,9 @@ export function createFormRow(): FormRow {
   return { id: uid('kv'), key: '', value: '', enabled: true, type: 'text' }
 }
 
-/** 新建一套环境，默认给一行空变量，方便直接编辑 */
+/** 新建一套环境，默认各给一行空行，方便直接编辑 */
 export function createEnvironment(name: string): Environment {
-  return { id: uid('env'), name, vars: [createKeyValueRow()] }
+  return { id: uid('env'), name, headers: [createKeyValueRow()], vars: [createKeyValueRow()] }
 }
 
 /** 新建一个空接口 */
@@ -71,6 +71,7 @@ export function createProject(name: string): Project {
     requests: [],
     environments,
     activeEnvId: environments[0].id,
+    headers: [createKeyValueRow()],
     vars: [createKeyValueRow()],
   }
 }
@@ -105,13 +106,17 @@ function normalize(data: Workspace): Workspace {
   for (const project of data.projects) {
     project.folders ??= []
     project.requests ??= []
+    project.headers ??= [createKeyValueRow()]
     project.vars ??= [createKeyValueRow()]
     project.environments ??= []
     if (!project.environments.length) project.environments = [createEnvironment('开发')]
     if (!project.environments.some((env) => env.id === project.activeEnvId)) {
       project.activeEnvId = project.environments[0].id
     }
-    for (const env of project.environments) env.vars ??= [createKeyValueRow()]
+    for (const env of project.environments) {
+      env.headers ??= [createKeyValueRow()]
+      env.vars ??= [createKeyValueRow()]
+    }
     for (const request of project.requests) {
       request.headers ??= [createKeyValueRow()]
       request.form ??= [createFormRow()]
@@ -353,4 +358,63 @@ export function resolveVariables(text: string): string {
   }
 
   return text.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (matched, name: string) => values.get(name) ?? matched)
+}
+
+/** 一个请求最终会带上的请求头，以及它来自哪一层 */
+export interface EffectiveHeader {
+  key: string
+  value: string
+  source: '全局' | '环境' | '请求'
+}
+
+/**
+ * 合并三层请求头：全局参数 -> 环境参数 -> 请求自己的。
+ * 同名的后面的覆盖前面的，所以优先级是 请求 > 环境 > 全局。
+ */
+export function effectiveHeaders(request: ApiRequest): EffectiveHeader[] {
+  const project = activeProject.value
+  if (!project) return []
+
+  const map = new Map<string, EffectiveHeader>()
+  const add = (rows: KeyValueRow[], source: EffectiveHeader['source']) => {
+    for (const row of rows) {
+      const key = row.key.trim()
+      if (!row.enabled || !key) continue
+      // 用全小写做键，避免 Content-Type 和 content-type 被当成两个头
+      map.set(key.toLowerCase(), { key, value: row.value, source })
+    }
+  }
+
+  add(project.headers, '全局')
+  const env = project.environments.find((item) => item.id === project.activeEnvId)
+  if (env) add(env.headers, '环境')
+  add(request.headers, '请求')
+
+  return [...map.values()]
+}
+
+/** 当前可用的变量（用来在输入时给候选提示） */
+export interface VariableHint {
+  key: string
+  value: string
+  source: '全局' | '环境'
+}
+
+export function availableVariables(): VariableHint[] {
+  const project = activeProject.value
+  if (!project) return []
+
+  const hints: VariableHint[] = []
+  for (const row of project.vars) {
+    if (row.enabled && row.key.trim()) {
+      hints.push({ key: row.key.trim(), value: row.value, source: '全局' })
+    }
+  }
+  const env = project.environments.find((item) => item.id === project.activeEnvId)
+  for (const row of env?.vars ?? []) {
+    if (row.enabled && row.key.trim()) {
+      hints.push({ key: row.key.trim(), value: row.value, source: '环境' })
+    }
+  }
+  return hints
 }

@@ -37,6 +37,9 @@ export interface Folder {
 export interface Environment {
   id: string
   name: string
+  /** 环境参数（请求头）：这个环境下的请求都会带上 */
+  headers: KeyValueRow[]
+  /** 环境变量：被 {{名字}} 引用 */
   vars: KeyValueRow[]
 }
 
@@ -68,6 +71,8 @@ export interface Project {
   environments: Environment[]
   /** 当前选中的环境 */
   activeEnvId: string
+  /** 全局参数（请求头）：整个项目的请求都会带上 */
+  headers: KeyValueRow[]
   /** 全局变量：所有环境都生效，环境变量优先级更高 */
   vars: KeyValueRow[]
 }

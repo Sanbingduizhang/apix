@@ -8,6 +8,7 @@ import { ref } from 'vue'
 import type { ApiRequest } from '../types'
 import { removeRequest, renameRequest, selectRequest, store } from '../store/workspace'
 import { openMenu } from '../store/contextMenu'
+import { askConfirm } from '../store/confirm'
 
 const props = defineProps<{ request: ApiRequest; depth: number }>()
 
@@ -25,8 +26,12 @@ function finishRename() {
   renaming.value = false
 }
 
-function askRemove() {
-  if (confirm(`删除接口「${props.request.name}」？`)) removeRequest(props.request.id)
+async function askRemove() {
+  const ok = await askConfirm({
+    title: `删除接口「${props.request.name}」？`,
+    message: '删除后无法恢复。',
+  })
+  if (ok) removeRequest(props.request.id)
 }
 
 function onContextMenu(event: MouseEvent) {
@@ -42,7 +47,7 @@ function onContextMenu(event: MouseEvent) {
   <div
     class="item"
     :class="{ on: request.id === store.activeRequestId }"
-    :style="{ paddingLeft: `${8 + depth * 15}px` }"
+    :style="{ paddingLeft: `${10 + depth * 16}px` }"
     @click="selectRequest(request.id)"
     @contextmenu.stop="onContextMenu"
   >
@@ -62,7 +67,18 @@ function onContextMenu(event: MouseEvent) {
       {{ request.name }}
     </span>
 
-    <button class="del" title="删除" @click.stop="askRemove">×</button>
+    <button class="del" title="删除" @click.stop="askRemove">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <path
+          d="M2.5 3.5h7M4.6 3.5V2.2h2.8v1.3M4 3.5l.4 6h3.2l.4-6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
   </div>
 </template>
 
@@ -71,11 +87,12 @@ function onContextMenu(event: MouseEvent) {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
+  gap: 9px;
+  height: var(--h-row);
   padding-right: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
+  transition: background 0.13s, box-shadow 0.13s;
 }
 
 .item:hover {
@@ -83,19 +100,8 @@ function onContextMenu(event: MouseEvent) {
 }
 
 .item.on {
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-}
-
-.item.on::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 7px;
-  bottom: 7px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--accent);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-1), inset 2.5px 0 0 0 var(--accent);
 }
 
 .item.on .label {
@@ -105,9 +111,10 @@ function onContextMenu(event: MouseEvent) {
 
 .method {
   flex: 0 0 auto;
-  width: 34px;
+  width: 38px;
   font-family: var(--mono);
   font-size: 9.5px;
+  font-weight: 600;
   letter-spacing: -0.2px;
 }
 
@@ -116,7 +123,7 @@ function onContextMenu(event: MouseEvent) {
   min-width: 0;
   overflow: hidden;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -124,23 +131,25 @@ function onContextMenu(event: MouseEvent) {
 .rename {
   flex: 1;
   min-width: 0;
-  height: 22px;
-  padding: 0 4px;
+  height: 24px;
+  padding: 0 6px;
   border: 1px solid var(--accent);
-  border-radius: 4px;
-  background: var(--surface);
-  font-size: 12.5px;
+  border-radius: 6px;
+  background: var(--surface-solid);
+  font-size: var(--font-sm);
 }
 
 .del {
-  flex: 0 0 16px;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
   color: var(--text-3);
-  font-size: 14px;
-  line-height: 1;
   opacity: 0;
+  transition: opacity 0.13s, color 0.13s, background 0.13s;
 }
 
 .item:hover .del {
@@ -148,6 +157,7 @@ function onContextMenu(event: MouseEvent) {
 }
 
 .del:hover {
+  background: var(--red-soft);
   color: var(--red);
 }
 </style>

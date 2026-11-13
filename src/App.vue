@@ -3,7 +3,7 @@
  * 应用外壳
  *
  * 两个页面：项目列表（首页）和项目内工作区。
- * 工作区 = 顶栏 + 左侧接口树 + 右侧（请求编辑 / 响应）上下分栏。
+ * 工作区 = 顶栏 + 左侧接口树 + 右侧（请求编辑 / 响应）上下分栏，三块都是悬浮面板。
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ProjectList from './components/ProjectList.vue'
@@ -13,8 +13,9 @@ import RequestEditor from './components/RequestEditor.vue'
 import ResponsePanel from './components/ResponsePanel.vue'
 import ContextMenu from './components/ContextMenu.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 import type { ApiRequest } from './types'
-import { activeRequest, resolveVariables } from './store/workspace'
+import { activeRequest, effectiveHeaders, resolveVariables } from './store/workspace'
 import { getFile } from './store/fileCache'
 import { sendHttpRequest, type FormField, type SendResult } from './api/http'
 
@@ -33,20 +34,18 @@ watch(
 
 /**
  * 把界面上的请求整理成可以发出去的形状：
- * 1. 变量替换（{{baseUrl}} 之类）
- * 2. 表单类型整理成字段列表（文本 + 文件的 base64）
- * 3. 没手动写 Content-Type 时，按请求体类型自动补一个
- *    （表单例外：multipart 的 boundary 必须由发送方生成，这里不能写死）
+ * 1. 合并请求头（全局参数 + 环境参数 + 请求自己的，后者覆盖前者）
+ * 2. 变量替换（{{baseUrl}} 之类）
+ * 3. 表单整理成字段列表（文本 + 文件的 base64）
+ * 4. 没手写 Content-Type 时按请求体类型补一个（表单除外，boundary 必须由发送方生成）
  */
 function buildPayload(request: ApiRequest) {
-  const headers = request.headers
-    .filter((row) => row.enabled && row.key.trim())
-    .map((row) => ({
-      id: row.id,
-      key: resolveVariables(row.key),
-      value: resolveVariables(row.value),
-      enabled: true,
-    }))
+  const headers = effectiveHeaders(request).map((item) => ({
+    id: item.key,
+    key: resolveVariables(item.key),
+    value: resolveVariables(item.value),
+    enabled: true,
+  }))
 
   const hasContentType = headers.some((row) => row.key.toLowerCase() === 'content-type')
   let body: string | null = null
@@ -66,7 +65,6 @@ function buildPayload(request: ApiRequest) {
       const key = resolveVariables(row.key)
 
       if (row.type === 'file') {
-        // 文件内容只存在内存里；没选到（比如刷新过页面）就跳过这个字段
         const cached = getFile(row.id)
         if (!cached) continue
         formFields.push({
@@ -83,7 +81,13 @@ function buildPayload(request: ApiRequest) {
     }
   }
 
-  return { method: request.method, url: resolveVariables(request.url.trim()), headers, body, formFields }
+  return {
+    method: request.method,
+    url: resolveVariables(request.url.trim()),
+    headers,
+    body,
+    formFields,
+  }
 }
 
 async function handleSend() {
@@ -134,7 +138,7 @@ function onKeydown(event: KeyboardEvent) {
 // ---------------- 上下分栏拖拽 ----------------
 
 const mainRef = ref<HTMLElement | null>(null)
-const editorHeight = ref(42)
+const editorHeight = ref(45)
 let dragging = false
 
 function startDrag(event: MouseEvent) {
@@ -196,13 +200,16 @@ onBeforeUnmount(() => {
 
   <ContextMenu />
   <SettingsDialog :open="settingsOpen" @close="settingsOpen = false" />
+  <ConfirmDialog />
 </template>
 
 <style scoped>
 .project-view {
   display: flex;
   flex-direction: column;
+  gap: 14px;
   height: 100vh;
+  padding: 14px;
   overflow: hidden;
 }
 
@@ -210,6 +217,7 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   display: flex;
+  gap: 14px;
 }
 
 .main {
@@ -217,7 +225,12 @@ onBeforeUnmount(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
   background: var(--surface);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-2);
 }
 
 .editor-slot {
@@ -235,19 +248,19 @@ onBeforeUnmount(() => {
 /* 分割线很细，划过时变强调色，提示这里能拖 */
 .splitter {
   position: relative;
-  flex: 0 0 7px;
+  flex: 0 0 9px;
   cursor: row-resize;
 }
 
 .splitter::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 3px;
+  left: 18px;
+  right: 18px;
+  top: 4px;
   height: 1px;
   background: var(--border);
-  transition: background 0.12s;
+  transition: background 0.15s;
 }
 
 .splitter:hover::after {
@@ -259,10 +272,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   height: 100%;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
 }
 
 .none p {
@@ -271,6 +284,6 @@ onBeforeUnmount(() => {
 }
 
 .none span {
-  font-size: 11.5px;
+  font-size: var(--font-xs);
 }
 </style>

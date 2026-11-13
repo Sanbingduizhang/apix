@@ -1,34 +1,72 @@
 <script setup lang="ts">
 /**
- * 设置弹窗：管理当前项目的环境与变量
+ * 项目设置：环境参数 / 环境变量，以及全局参数 / 全局变量
  *
- * 左边选「环境」或「全局变量」，右边编辑变量表。
- * 变量在请求的地址 / 请求头 / 请求体里用 {{变量名}} 引用。
+ * 左边选「某个环境」或「全局」，右边对应两组表格：
+ *   参数 = 请求头，会随请求自动带上
+ *   变量 = 被 {{名字}} 引用，发送前替换成真实值
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { VariableHint } from '../store/workspace'
 import {
   activeProject,
   addEnvironment,
   removeEnvironment,
+  setActiveEnvironment,
 } from '../store/workspace'
+import { askConfirm } from '../store/confirm'
 import KeyValueEditor from './KeyValueEditor.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-/** 当前编辑对象：'global' 表示全局变量，否则是环境 id */
+/** 模板里直接写 {{名字}} 会被当成插值，所以放常量 */
+const VAR_EXAMPLE = '{{名字}}'
+
+const HEADER_SUGGESTIONS = [
+  'Accept',
+  'Accept-Language',
+  'Authorization',
+  'Cache-Control',
+  'Content-Type',
+  'Origin',
+  'Referer',
+  'User-Agent',
+  'X-API-Key',
+  'X-Request-Id',
+  'X-Trace-Id',
+]
+
+/** 当前选中：'global' 表示全局，否则是环境 id */
 const selected = ref<string>('global')
 
-/** 模板里直接写 {{变量名}} 会被当成插值，所以放到变量里 */
-const VAR_EXAMPLE = '{{变量名}}'
-
 const project = computed(() => activeProject.value)
-
 const selectedEnv = computed(() =>
   project.value?.environments.find((env) => env.id === selected.value),
 )
 
-// 每次打开都定位到当前环境，省得用户再点一次
+const isActiveEnv = computed(() => selectedEnv.value?.id === project.value?.activeEnvId)
+
+/** 当前这几张表格能用到的变量（全局 + 正在编辑的环境） */
+const hintVars = computed<VariableHint[]>(() => {
+  const current = project.value
+  if (!current) return []
+
+  const list: VariableHint[] = []
+  for (const row of current.vars) {
+    if (row.enabled && row.key.trim()) {
+      list.push({ key: row.key.trim(), value: row.value, source: '全局' })
+    }
+  }
+  for (const row of selectedEnv.value?.vars ?? []) {
+    if (row.enabled && row.key.trim()) {
+      list.push({ key: row.key.trim(), value: row.value, source: '环境' })
+    }
+  }
+  return list
+})
+
+// 每次打开都定位到当前环境
 watch(
   () => props.open,
   (open) => {
@@ -41,141 +79,222 @@ function createEnvironment() {
   if (env) selected.value = env.id
 }
 
-function deleteEnvironment() {
+async function deleteEnvironment() {
   const env = selectedEnv.value
   if (!env) return
-  if (!confirm(`删除环境「${env.name}」？里面的变量会一起删除。`)) return
+  const ok = await askConfirm({
+    title: `删除环境「${env.name}」？`,
+    message: '这个环境的参数和变量会一起删除。',
+  })
+  if (!ok) return
   removeEnvironment(env.id)
   selected.value = project.value?.activeEnvId ?? 'global'
 }
+
+function onKeydown(event: KeyboardEvent) {
+  if (props.open && event.key === 'Escape') emit('close')
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div v-if="open && project" class="overlay" @mousedown.self="emit('close')">
-    <div class="dialog" @keydown.esc="emit('close')">
-      <header class="header">
-        <h2>设置</h2>
-        <button class="close" title="关闭" @click="emit('close')">×</button>
-      </header>
+  <Transition name="fade">
+    <div v-if="open && project" class="overlay" @mousedown.self="emit('close')">
+      <div class="dialog">
+        <header class="header">
+          <div>
+            <h2>项目设置</h2>
+            <p class="sub">{{ project.name }}</p>
+          </div>
+          <button class="close" title="关闭" @click="emit('close')">×</button>
+        </header>
 
-      <div class="body">
-        <nav class="nav">
-          <p class="nav-title">环境</p>
-          <button
-            v-for="env in project.environments"
-            :key="env.id"
-            class="nav-item"
-            :class="{ on: selected === env.id }"
-            @click="selected = env.id"
-          >
-            <span class="env-name">{{ env.name }}</span>
-            <span class="env-count">{{ env.vars.filter((v) => v.enabled && v.key).length }}</span>
-          </button>
-          <button class="nav-item add" @click="createEnvironment">+ 新增环境</button>
+        <div class="body">
+          <nav class="nav">
+            <p class="nav-title">环境</p>
+            <button
+              v-for="env in project.environments"
+              :key="env.id"
+              class="nav-item"
+              :class="{ on: selected === env.id }"
+              @click="selected = env.id"
+            >
+              <span class="env-name">{{ env.name }}</span>
+              <span v-if="env.id === project.activeEnvId" class="tag">当前</span>
+            </button>
+            <button class="nav-item add" @click="createEnvironment">+ 新增环境</button>
 
-          <p class="nav-title second">其他</p>
-          <button
-            class="nav-item"
-            :class="{ on: selected === 'global' }"
-            @click="selected = 'global'"
-          >
-            <span class="env-name">全局变量</span>
-            <span class="env-count">{{ project.vars.filter((v) => v.enabled && v.key).length }}</span>
-          </button>
-        </nav>
+            <p class="nav-title second">全局</p>
+            <button
+              class="nav-item"
+              :class="{ on: selected === 'global' }"
+              @click="selected = 'global'"
+            >
+              <span class="env-name">参数与变量</span>
+            </button>
+          </nav>
 
-        <section class="content">
-          <!-- 环境变量 -->
-          <template v-if="selectedEnv">
-            <div class="content-head">
-              <input
-                v-model="selectedEnv.name"
-                class="env-input"
-                @blur="selectedEnv.name = selectedEnv.name.trim() || '未命名环境'"
-              />
-              <button
-                class="danger-btn"
-                :disabled="project.environments.length <= 1"
-                @click="deleteEnvironment"
-              >
-                删除环境
-              </button>
-            </div>
-            <KeyValueEditor
-              :rows="selectedEnv.vars"
-              key-placeholder="变量名"
-              value-placeholder="变量值"
-            />
-          </template>
+          <section class="content">
+            <!-- 某个环境 -->
+            <template v-if="selectedEnv">
+              <div class="head">
+                <div class="field">
+                  <label>环境名称</label>
+                  <input
+                    v-model="selectedEnv.name"
+                    class="text-input"
+                    @blur="selectedEnv.name = selectedEnv.name.trim() || '未命名环境'"
+                  />
+                </div>
+                <div class="head-actions">
+                  <button
+                    class="ghost"
+                    :disabled="isActiveEnv"
+                    @click="setActiveEnvironment(selectedEnv.id)"
+                  >
+                    {{ isActiveEnv ? '当前环境' : '设为当前' }}
+                  </button>
+                  <button
+                    class="danger"
+                    :disabled="project.environments.length <= 1"
+                    @click="deleteEnvironment"
+                  >
+                    删除环境
+                  </button>
+                </div>
+              </div>
 
-          <!-- 全局变量 -->
-          <template v-else>
-            <div class="content-head">
-              <span class="content-title">全局变量</span>
-              <span class="head-hint">所有环境都会生效</span>
-            </div>
-            <KeyValueEditor :rows="project.vars" key-placeholder="变量名" value-placeholder="变量值" />
-          </template>
+              <div class="block">
+                <p class="block-title">
+                  环境参数<span>请求头，切到这个环境时自动带上</span>
+                </p>
+                <KeyValueEditor
+                  :rows="selectedEnv.headers"
+                  :suggestions="HEADER_SUGGESTIONS"
+                  :variables="hintVars"
+                  key-placeholder="键名"
+                  value-placeholder="值，支持 {{变量}}"
+                />
+              </div>
 
-          <p class="tip">
-            在地址、请求头、请求体里写 <code>{{ VAR_EXAMPLE }}</code> 即可引用；环境变量优先于全局变量。
-          </p>
-        </section>
+              <div class="block">
+                <p class="block-title">
+                  环境变量<span>在地址、请求头、请求体里用 {{ VAR_EXAMPLE }} 引用</span>
+                </p>
+                <KeyValueEditor
+                  :rows="selectedEnv.vars"
+                  key-placeholder="变量名"
+                  value-placeholder="变量值"
+                />
+              </div>
+            </template>
+
+            <!-- 全局 -->
+            <template v-else>
+              <div class="head">
+                <div class="field">
+                  <label>全局</label>
+                  <span class="ro">整个项目生效，优先级低于环境</span>
+                </div>
+              </div>
+
+              <div class="block">
+                <p class="block-title">
+                  全局参数<span>请求头，所有请求都会带上</span>
+                </p>
+                <KeyValueEditor
+                  :rows="project.headers"
+                  :suggestions="HEADER_SUGGESTIONS"
+                  :variables="hintVars"
+                  key-placeholder="键名"
+                  value-placeholder="值，支持 {{变量}}"
+                />
+              </div>
+
+              <div class="block">
+                <p class="block-title">
+                  全局变量<span>所有环境都能用，同名的环境变量优先</span>
+                </p>
+                <KeyValueEditor
+                  :rows="project.vars"
+                  key-placeholder="变量名"
+                  value-placeholder="变量值"
+                />
+              </div>
+            </template>
+          </section>
+        </div>
       </div>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <style scoped>
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--overlay);
+  background: rgba(12, 13, 20, 0.34);
+  backdrop-filter: blur(8px);
 }
 
 .dialog {
-  width: 760px;
+  width: 820px;
   max-width: calc(100vw - 64px);
-  height: 540px;
+  height: auto;
+  min-height: 500px;
   max-height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xl);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-3);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 18px;
+  padding: 20px 22px 16px;
   border-bottom: 1px solid var(--border);
 }
 
-.header h2 {
+h2 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.sub {
+  margin: 3px 0 0;
+  color: var(--text-3);
+  font-size: var(--font-xs);
 }
 
 .close {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
   color: var(--text-3);
-  font-size: 17px;
+  font-size: 20px;
   line-height: 1;
+  transition: background 0.15s, color 0.15s;
 }
 
 .close:hover {
-  color: var(--text);
   background: var(--hover);
+  color: var(--text);
 }
 
 .body {
@@ -185,20 +304,22 @@ function deleteEnvironment() {
 }
 
 .nav {
-  flex: 0 0 200px;
-  padding: 12px 10px;
+  flex: 0 0 216px;
+  padding: 14px 12px;
   border-right: 1px solid var(--border);
-  background: var(--sidebar-bg);
+  background: var(--neutral-soft);
+  overflow: auto;
 }
 
 .nav-title {
-  margin: 6px 8px 6px;
+  margin: 6px 10px 8px;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--font-xs);
+  letter-spacing: 0.04em;
 }
 
 .nav-title.second {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .nav-item {
@@ -207,12 +328,13 @@ function deleteEnvironment() {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--font-md);
   text-align: left;
+  transition: background 0.14s, color 0.14s, box-shadow 0.14s;
 }
 
 .nav-item:hover {
@@ -220,13 +342,14 @@ function deleteEnvironment() {
 }
 
 .nav-item.on {
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-1);
   color: var(--text);
   font-weight: 500;
 }
 
 .nav-item.add {
+  margin-top: 2px;
   color: var(--text-3);
 }
 
@@ -240,85 +363,130 @@ function deleteEnvironment() {
   white-space: nowrap;
 }
 
-.env-count {
-  color: var(--text-3);
-  font-size: 11px;
+.tag {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 10.5px;
   font-weight: 400;
 }
 
 .content {
   flex: 1;
   min-width: 0;
-  padding: 16px 20px;
+  padding: 20px 24px 28px;
   overflow: auto;
 }
 
-.content-head {
+.head {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
 }
 
-.env-input {
-  flex: 1;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+label {
+  color: var(--text-3);
+  font-size: var(--font-xs);
+}
+
+.text-input {
+  width: 260px;
+  height: var(--h-ctl);
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: var(--field);
-  font-size: 13px;
+  font-size: var(--font-md);
   font-weight: 500;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
-.env-input:focus {
+.text-input:focus {
   border-color: var(--accent);
-  background: var(--surface);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
-.env-input[readonly] {
+.ro {
+  color: var(--text-3);
+  font-size: var(--font-sm);
+}
+
+.head-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ghost,
+.danger {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
   color: var(--text-2);
+  font-size: var(--font-sm);
+  transition: color 0.15s, border-color 0.15s, background 0.15s, opacity 0.15s;
 }
 
-.content-title {
-  font-size: 13px;
-  font-weight: 500;
+.ghost:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text);
 }
 
-.head-hint {
-  color: var(--text-3);
-  font-size: 11.5px;
-}
-
-.danger-btn {
-  padding: 5px 10px;
-  border-radius: 6px;
-  color: var(--text-3);
-  font-size: 12px;
-}
-
-.danger-btn:hover:not(:disabled) {
-  color: var(--red);
+.danger:hover:not(:disabled) {
+  border-color: transparent;
   background: var(--red-soft);
+  color: var(--red);
 }
 
-.danger-btn:disabled {
-  opacity: 0.4;
+.ghost:disabled,
+.danger:disabled {
+  opacity: 0.45;
   cursor: default;
 }
 
-.tip {
-  margin: 18px 0 0 26px;
-  color: var(--text-3);
-  font-size: 11.5px;
-  line-height: 1.7;
+.block {
+  margin-bottom: 16px;
+  padding: 16px 18px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--field);
 }
 
-.tip code {
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: var(--field-solid);
-  font-family: var(--mono);
-  font-size: 11px;
+.block-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.block-title span {
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  font-weight: 400;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.16s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

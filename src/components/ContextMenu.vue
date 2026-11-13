@@ -10,11 +10,11 @@ import { closeMenu, menu } from '../store/contextMenu'
 
 /** 简单夹一下坐标，避免菜单跑到窗口外面 */
 const style = computed(() => {
-  const width = 168
-  const height = menu.items.length * 32 + 12
-  const x = Math.min(menu.x, window.innerWidth - width - 8)
-  const y = Math.min(menu.y, window.innerHeight - height - 8)
-  return { left: `${Math.max(8, x)}px`, top: `${Math.max(8, y)}px` }
+  const width = 188
+  const height = menu.items.length * 34 + 14
+  const x = Math.min(menu.x, window.innerWidth - width - 10)
+  const y = Math.min(menu.y, window.innerHeight - height - 10)
+  return { left: `${Math.max(10, x)}px`, top: `${Math.max(10, y)}px` }
 })
 
 function run(action?: () => void) {
@@ -25,14 +25,16 @@ function run(action?: () => void) {
 
 <template>
   <div v-if="menu.open" class="overlay" @mousedown="closeMenu" @contextmenu.prevent="closeMenu" />
-  <div v-if="menu.open" class="menu" :style="style">
-    <template v-for="(item, index) in menu.items" :key="index">
-      <div v-if="item.separator" class="sep" />
-      <button v-else class="item" :class="{ danger: item.danger }" @click="run(item.action)">
-        {{ item.label }}
-      </button>
-    </template>
-  </div>
+  <Transition name="pop">
+    <div v-if="menu.open" class="menu" :style="style">
+      <template v-for="(item, index) in menu.items" :key="index">
+        <div v-if="item.separator" class="sep" />
+        <button v-else class="item" :class="{ danger: item.danger }" @click="run(item.action)">
+          {{ item.label }}
+        </button>
+      </template>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -45,23 +47,24 @@ function run(action?: () => void) {
 .menu {
   position: fixed;
   z-index: 61;
-  width: 168px;
-  padding: 5px;
-  border: 1px solid var(--border);
+  width: 188px;
+  padding: 7px;
+  border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-pop);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-3);
 }
 
 .item {
   display: block;
   width: 100%;
-  height: 30px;
-  padding: 0 9px;
-  border-radius: 6px;
+  height: 34px;
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
   text-align: left;
+  transition: background 0.12s, color 0.12s;
 }
 
 .item:hover {
@@ -78,7 +81,18 @@ function run(action?: () => void) {
 
 .sep {
   height: 1px;
-  margin: 5px 6px;
+  margin: 6px 8px;
   background: var(--border);
+}
+
+.pop-enter-active,
+.pop-leave-active {
+  transition: opacity 0.13s ease, transform 0.13s ease;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(0.97);
 }
 </style>

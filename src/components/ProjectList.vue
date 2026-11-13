@@ -2,36 +2,52 @@
 /**
  * 首页：项目列表（多宫格）
  *
- * 打开客户端先看到这里，而不是直接进某个项目。
+ * 每个项目用 id 算一个色相，卡片背景带一点同色系的渐变，多个项目一眼能分出来。
  * 「即时调试」是内置项目，永远排第一，不能删也不能改名。
  */
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Project } from '../types'
 import { addProject, openProject, removeProject, renameProject, store } from '../store/workspace'
 import { openMenu, type MenuItem } from '../store/contextMenu'
-import ThemeMenu from './ThemeMenu.vue'
+import { askConfirm } from '../store/confirm'
+import AppearanceMenu from './AppearanceMenu.vue'
 
 const emit = defineEmits<{ open: [id: string] }>()
 
 const creating = ref(false)
 const draft = ref('')
+const createRef = ref<HTMLElement | null>(null)
 const renamingId = ref('')
 const renameDraft = ref('')
+
+const totalRequests = computed(() =>
+  store.projects.reduce((sum, project) => sum + project.requests.length, 0),
+)
+
+/** 用项目 id 算一个稳定的色相（0-360），保证每次打开颜色一致 */
+function hueOf(id: string): number {
+  let hash = 7
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 360
+  return hash
+}
 
 function enter(project: Project) {
   openProject(project.id)
   emit('open', project.id)
 }
 
+function startCreate() {
+  creating.value = true
+  draft.value = ''
+}
+
 function create() {
+  if (!creating.value) return
   const name = draft.value.trim()
-  if (!name) {
-    creating.value = false
-    return
-  }
-  const project = addProject(name)
   creating.value = false
   draft.value = ''
+  if (!name) return
+  const project = addProject(name)
   if (project) enter(project)
 }
 
@@ -40,9 +56,17 @@ function cancelCreate() {
   draft.value = ''
 }
 
+/** 点到新建卡片外面就收起来：有内容就建，没内容就取消 */
+function onDocumentMousedown(event: MouseEvent) {
+  if (!creating.value) return
+  const target = event.target as Node
+  if (createRef.value?.contains(target)) return
+  create()
+}
+
 function startRename(project: Project) {
-  renameDraft.value = project.name
   renamingId.value = project.id
+  renameDraft.value = project.name
 }
 
 function finishRename(project: Project) {
@@ -51,10 +75,13 @@ function finishRename(project: Project) {
   renamingId.value = ''
 }
 
-function askRemove(project: Project) {
-  if (confirm(`删除项目「${project.name}」？里面的接口和环境变量会一起删除。`)) {
-    removeProject(project.id)
-  }
+async function askRemove(project: Project) {
+  const ok = await askConfirm({
+    title: `删除项目「${project.name}」？`,
+    message: '项目里的接口、目录和环境变量会一起删除，无法恢复。',
+    confirmText: '删除项目',
+  })
+  if (ok) removeProject(project.id)
 }
 
 function cardMenu(event: MouseEvent, project: Project) {
@@ -68,6 +95,9 @@ function cardMenu(event: MouseEvent, project: Project) {
   }
   openMenu(event, items)
 }
+
+onMounted(() => document.addEventListener('mousedown', onDocumentMousedown))
+onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMousedown))
 </script>
 
 <template>
@@ -76,59 +106,84 @@ function cardMenu(event: MouseEvent, project: Project) {
       <div class="brand">
         <span class="logo" />
         <span class="brand-name">apix</span>
+        <span class="brand-sub">HTTP 调试</span>
       </div>
-      <ThemeMenu />
+      <AppearanceMenu />
     </header>
 
     <div class="content">
-      <h1>项目</h1>
-      <p class="sub">选一个项目开始调试。不同项目的接口、环境变量互相独立。</p>
+      <div class="title-row">
+        <div>
+          <h1>项目</h1>
+          <p class="sub">{{ store.projects.length }} 个项目 · {{ totalRequests }} 个接口</p>
+        </div>
+      </div>
 
       <div class="grid">
         <article
           v-for="project in store.projects"
           :key="project.id"
           class="card"
+          :style="{ '--h': hueOf(project.id) }"
           @click="enter(project)"
           @contextmenu.prevent="cardMenu($event, project)"
         >
-          <div class="card-top">
-            <input
-              v-if="renamingId === project.id"
-              v-model="renameDraft"
-              class="rename"
-              :ref="(el: any) => el?.focus()"
-              @click.stop
-              @keydown.enter="finishRename(project)"
-              @keydown.esc="renamingId = ''"
-              @blur="finishRename(project)"
-            />
-            <span v-else class="card-name" @dblclick.stop="startRename(project)">
-              {{ project.name }}
-            </span>
-            <span v-if="project.scratch" class="badge">默认</span>
+          <div class="card-glow" />
+
+          <div class="card-body">
+            <div class="card-top">
+              <input
+                v-if="renamingId === project.id"
+                v-model="renameDraft"
+                class="rename"
+                :ref="(el: any) => el?.focus()"
+                @click.stop
+                @keydown.enter="finishRename(project)"
+                @keydown.esc="renamingId = ''"
+                @blur="finishRename(project)"
+              />
+              <h2 v-else class="card-name" @dblclick.stop="startRename(project)">
+                {{ project.name }}
+              </h2>
+
+              <span v-if="project.scratch" class="badge">默认</span>
+
+              <button class="more" title="更多" @click.stop="cardMenu($event, project)">⋯</button>
+            </div>
+
+            <div class="chips">
+              <span class="chip">{{ project.requests.length }} 接口</span>
+              <span class="chip">{{ project.folders.length }} 目录</span>
+              <span class="chip">{{ project.environments.length }} 环境</span>
+            </div>
           </div>
 
-          <div class="meta">
-            <span>{{ project.requests.length }} 个接口</span>
-            <span class="sep">·</span>
-            <span>{{ project.folders.length }} 个目录</span>
-            <span class="sep">·</span>
-            <span>{{ project.environments.length }} 个环境</span>
+          <div class="card-foot">
+            <span class="env">
+              <span class="env-dot" />
+              {{ project.environments.find((e) => e.id === project.activeEnvId)?.name ?? '无环境' }}
+            </span>
+            <span class="enter">进入 →</span>
           </div>
         </article>
 
-        <button v-if="!creating" class="card new" @click="creating = true">+ 新建项目</button>
-        <div v-else class="card new">
+        <button v-if="!creating" ref="createRef" class="card new" @click="startCreate">
+          <span class="plus">+</span>
+          <span>新建项目</span>
+        </button>
+
+        <div v-else ref="createRef" class="card new creating">
           <input
             v-model="draft"
             class="new-input"
             placeholder="项目名称，回车创建"
             :ref="(el: any) => el?.focus()"
+            @click.stop
             @keydown.enter="create"
             @keydown.esc="cancelCreate"
             @blur="create"
           />
+          <span class="new-hint">回车确认 · Esc 取消</span>
         </div>
       </div>
     </div>
@@ -140,7 +195,6 @@ function cardMenu(event: MouseEvent, project: Project) {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: var(--bg);
   overflow: auto;
 }
 
@@ -148,71 +202,112 @@ function cardMenu(event: MouseEvent, project: Project) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 20px 28px 6px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
 }
 
 .logo {
-  width: 8px;
-  height: 8px;
-  border-radius: 3px;
-  background: var(--accent);
+  width: 11px;
+  height: 11px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 2px 8px -2px var(--accent);
 }
 
 .brand-name {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
+  font-size: var(--font-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand-sub {
+  color: var(--text-3);
+  font-size: var(--font-sm);
 }
 
 .content {
   width: 100%;
-  max-width: 1080px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 24px 20px 60px;
+  padding: 26px 28px 70px;
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 22px;
 }
 
 h1 {
   margin: 0;
-  font-size: 19px;
-  font-weight: 500;
+  font-size: var(--font-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .sub {
-  margin: 6px 0 22px;
+  margin: 6px 0 0;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: var(--font-sm);
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  gap: 18px;
 }
 
+/* ---- 项目卡片 ---- */
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 18px;
-  min-height: 104px;
-  padding: 16px;
+  min-height: 178px;
+  padding: 20px;
+  overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-2);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.14s, box-shadow 0.14s;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.18s,
+    border-color 0.18s;
+}
+
+/* 右上角一团同色系的光，让每个项目有自己的气质 */
+.card-glow {
+  position: absolute;
+  top: -70px;
+  right: -50px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(var(--h) 90% 62% / 0.34), transparent 66%);
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.3s;
 }
 
 .card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-card);
+  border-color: hsl(var(--h) 70% 62% / 0.4);
+  box-shadow: var(--shadow-3);
+  transform: translateY(-4px);
+}
+
+.card:hover .card-glow {
+  transform: scale(1.15);
+}
+
+.card-body {
+  position: relative;
 }
 
 .card-top {
@@ -224,67 +319,172 @@ h1 {
 .card-name {
   flex: 1;
   min-width: 0;
+  margin: 0;
   overflow: hidden;
-  font-size: 13.5px;
-  font-weight: 500;
+  font-size: var(--font-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .badge {
   flex: 0 0 auto;
-  padding: 1px 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  color: var(--text-3);
-  font-size: 10.5px;
+  padding: 2px 8px;
+  border: 1px solid hsl(var(--h) 60% 60% / 0.35);
+  border-radius: 999px;
+  background: hsl(var(--h) 80% 60% / 0.12);
+  color: hsl(var(--h) 55% 45%);
+  font-size: var(--font-xs);
 }
 
-.meta {
+[data-theme='dark'] .badge {
+  color: hsl(var(--h) 70% 78%);
+}
+
+.more {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.card:hover .more {
+  opacity: 1;
+}
+
+.more:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-2);
+  font-size: var(--font-xs);
+}
+
+.card-foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.env {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--text-3);
-  font-size: 11.5px;
+  font-size: var(--font-xs);
 }
 
-.sep {
-  color: var(--border-strong);
+.env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-soft);
+}
+
+.enter {
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.18s, transform 0.18s;
+}
+
+.card:hover .enter {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--accent);
 }
 
 .rename {
   flex: 1;
   min-width: 0;
-  height: 24px;
-  padding: 0 6px;
+  height: 30px;
+  padding: 0 8px;
   border: 1px solid var(--accent);
-  border-radius: 5px;
-  background: var(--surface);
-  font-size: 13.5px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-solid);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  font-size: var(--font-md);
 }
 
-.new {
+/* ---- 新建卡片 ---- */
+.card.new {
   align-items: center;
   justify-content: center;
+  gap: 8px;
   border-style: dashed;
+  border-color: var(--border-strong);
+  background: var(--surface-soft);
   color: var(--text-3);
-  font-size: 12.5px;
-  text-align: center;
+  font-size: var(--font-md);
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
-.new:hover {
+.card.new:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-2px);
+}
+
+.plus {
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.card.new.creating {
+  gap: 10px;
+  padding: 26px;
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surface-solid);
+  cursor: default;
 }
 
 .new-input {
   width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--surface);
-  font-size: 13px;
+  height: var(--h-ctl);
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--field);
+  font-size: var(--font-md);
   text-align: center;
+}
+
+.new-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.new-hint {
+  font-size: var(--font-xs);
+  color: var(--text-3);
 }
 </style>

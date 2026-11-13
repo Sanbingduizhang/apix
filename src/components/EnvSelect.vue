@@ -11,14 +11,15 @@ const open = ref(false)
 const root = ref<HTMLElement | null>(null)
 
 const environments = computed(() => activeProject.value?.environments ?? [])
-const current = computed(() => environments.value.find((e) => e.id === activeProject.value?.activeEnvId))
+const current = computed(() =>
+  environments.value.find((env) => env.id === activeProject.value?.activeEnvId),
+)
 
 function choose(envId: string) {
   setActiveEnvironment(envId)
   open.value = false
 }
 
-/** 收起下拉并通知父组件打开设置 */
 function manage() {
   open.value = false
   emit('manage')
@@ -37,35 +38,35 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
     <button class="trigger" :class="{ open }" @click="open = !open">
       <span class="dot" />
       <span class="name">{{ current?.name ?? '未选择环境' }}</span>
-      <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true">
+      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
         <path
           d="M2 4l3 3 3-3"
           fill="none"
           stroke="currentColor"
-          stroke-width="1.4"
+          stroke-width="1.5"
           stroke-linecap="round"
           stroke-linejoin="round"
         />
       </svg>
     </button>
 
-    <div v-if="open" class="list">
-      <button
-        v-for="env in environments"
-        :key="env.id"
-        class="option"
-        :class="{ active: env.id === activeProject?.activeEnvId }"
-        @click="choose(env.id)"
-      >
-        <span>{{ env.name }}</span>
-        <span class="count">{{ env.vars.filter((v) => v.enabled && v.key).length }} 个变量</span>
-      </button>
+    <Transition name="pop">
+      <div v-if="open" class="list">
+        <button
+          v-for="env in environments"
+          :key="env.id"
+          class="option"
+          :class="{ active: env.id === activeProject?.activeEnvId }"
+          @click="choose(env.id)"
+        >
+          <span class="opt-name">{{ env.name }}</span>
+          <span class="count">{{ env.vars.filter((v) => v.enabled && v.key).length }} 变量</span>
+        </button>
 
-      <div class="sep" />
-      <button class="option" @click="manage">
-        <span>管理环境与变量…</span>
-      </button>
-    </div>
+        <div class="sep" />
+        <button class="option manage" @click="manage">管理环境与参数…</button>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -77,47 +78,52 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
 .trigger {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 9px;
+  gap: 8px;
+  height: var(--h-ctl);
+  padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius);
+  background: var(--surface-soft);
   color: var(--text-2);
-  font-size: 12.5px;
-  transition: border-color 0.12s, color 0.12s;
+  font-size: var(--font-sm);
+  transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
 }
 
 .trigger:hover,
 .trigger.open {
   border-color: var(--border-strong);
+  background: var(--surface-solid);
   color: var(--text);
+  transform: translateY(-1px);
 }
 
 .dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-soft);
 }
 
 .name {
-  max-width: 120px;
+  max-width: 130px;
   overflow: hidden;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .list {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 10px);
   right: 0;
-  z-index: 20;
-  width: 208px;
-  padding: 4px;
-  border: 1px solid var(--border);
+  z-index: 40;
+  width: 232px;
+  padding: 6px;
+  border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-pop);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-3);
 }
 
 .option {
@@ -126,11 +132,12 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 6px;
-  font-size: 12.5px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
   text-align: left;
+  transition: background 0.13s, color 0.13s;
 }
 
 .option:hover {
@@ -139,16 +146,44 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
 
 .option.active {
   color: var(--accent);
+  font-weight: 500;
+}
+
+.opt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .count {
+  flex: 0 0 auto;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--font-xs);
+  font-weight: 400;
 }
 
 .sep {
   height: 1px;
-  margin: 4px 6px;
+  margin: 6px 8px;
   background: var(--border);
+}
+
+.manage {
+  color: var(--text-2);
+}
+
+.manage:hover {
+  color: var(--accent);
+}
+
+.pop-enter-active,
+.pop-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
 }
 </style>
