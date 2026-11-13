@@ -63,6 +63,8 @@
   --accent-2: #6fbf8f;
   --accent-soft: rgba(31, 143, 134, 0.13);
   --accent-contrast: #ffffff;
+  /* 按钮、选中态用的渐变。默认两色，渐变类配色可以换成三色 */
+  --grad: linear-gradient(135deg, var(--accent), var(--accent-2));
 
   --green: #3f9d6f;
   --amber: #c08430;
@@ -181,7 +183,6 @@
   --accent-2: #c76bd9;
   --accent-soft: rgba(123, 108, 246, 0.12);
   --accent-contrast: #ffffff;
-
   --purple: #8b5cd6;
   --neutral-soft: rgba(72, 52, 38, 0.06);
 
@@ -237,6 +238,277 @@
   --shadow-3: 0 36px 80px -30px rgba(0, 0, 0, 0.85), 0 12px 30px -14px rgba(0, 0, 0, 0.55);
   --shadow-btn: 0 10px 24px -10px rgba(157, 141, 255, 0.45);
   --inset-field: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- 配色：潮汐（海雾蓝 + 深海蓝） ---- */
+[data-palette='tide'] {
+  --bg: #e7eef4;
+  --orb-1: #a9d8e8;
+  --orb-2: #fdf6e3;
+  --orb-3: #b8c6f0;
+  --arc: rgba(84, 130, 170, 0.16);
+  --dot: rgba(24, 44, 60, 0.055);
+
+  --surface: rgba(250, 253, 255, 0.84);
+  --surface-solid: #fbfdff;
+  --surface-soft: rgba(248, 252, 255, 0.56);
+  --field: rgba(248, 252, 255, 0.72);
+
+  --text: #1f2c38;
+  --text-2: #5a6b7a;
+  --text-3: #93a2b0;
+
+  --accent: #1d6fa5;
+  --accent-2: #46b3d1;
+  --accent-soft: rgba(29, 111, 165, 0.13);
+  --accent-contrast: #ffffff;
+
+  --code-key: #2b5f86;
+  --neutral-soft: rgba(24, 60, 90, 0.05);
+  --code-punc: #9fb0bd;
+  --shadow-btn: 0 10px 24px -10px rgba(29, 111, 165, 0.5);
+}
+
+[data-palette='tide'][data-theme='dark'] {
+  --bg: #0f1720;
+  --orb-1: #1b3a4f;
+  --orb-2: #123043;
+  --orb-3: #2a2440;
+  --arc: rgba(150, 210, 240, 0.1);
+
+  --surface: rgba(22, 32, 42, 0.78);
+  --surface-solid: #16202a;
+  --text: #e8f0f6;
+  --text-2: #a3b4c0;
+  --text-3: #6f8290;
+
+  --accent: #5cb8e0;
+  --accent-2: #7fd8e8;
+  --accent-soft: rgba(92, 184, 224, 0.18);
+  --accent-contrast: #08171f;
+
+  --code-key: #8fc4e0;
+  --code-punc: #64757f;
+  --shadow-btn: 0 10px 24px -10px rgba(92, 184, 224, 0.45);
+}
+
+/* ---- 配色：糖果（渐变配色，玫红 -> 紫 -> 橙） ---- */
+[data-palette='candy'] {
+  --bg: #f5edf7;
+  --orb-1: #ffc6e0;
+  --orb-2: #ffe9b8;
+  --orb-3: #c9d4ff;
+  --arc: rgba(196, 120, 200, 0.16);
+  --dot: rgba(60, 30, 60, 0.05);
+
+  --surface: rgba(255, 251, 254, 0.84);
+  --surface-solid: #fffbfe;
+  --surface-soft: rgba(255, 249, 253, 0.56);
+  --field: rgba(255, 249, 253, 0.72);
+
+  --text: #33232f;
+  --text-2: #6d5a68;
+  --text-3: #a695a2;
+
+  --accent: #f0568c;
+  --accent-2: #a06cf6;
+  --accent-soft: rgba(240, 86, 140, 0.12);
+  --accent-contrast: #ffffff;
+  /* 三色渐变，这个是"渐变配色"的重点 */
+  --grad: linear-gradient(135deg, #f0568c, #a06cf6 55%, #ffb37a);
+
+  --code-key: #9b4b86;
+  --neutral-soft: rgba(90, 40, 80, 0.05);
+  --code-punc: #b9a6b4;
+  --shadow-btn: 0 12px 26px -10px rgba(200, 90, 170, 0.55);
+}
+
+[data-palette='candy'][data-theme='dark'] {
+  --bg: #1c1420;
+  --orb-1: #4a1f3e;
+  --orb-2: #402a52;
+  --orb-3: #4a2a1c;
+  --arc: rgba(255, 170, 220, 0.12);
+
+  --surface: rgba(40, 28, 40, 0.78);
+  --surface-solid: #24191f;
+  --text: #f6ecf3;
+  --text-2: #c1a8ba;
+  --text-3: #8a7284;
+
+  --accent: #ff8ab6;
+  --accent-2: #b98bff;
+  --accent-soft: rgba(255, 138, 182, 0.18);
+  --accent-contrast: #20101a;
+  --grad: linear-gradient(135deg, #ff8ab6, #b98bff 55%, #ffc78a);
+
+  --code-key: #e0a6d0;
+  --code-punc: #7a6873;
+  --shadow-btn: 0 12px 26px -10px rgba(255, 138, 182, 0.4);
+}
+
+/* ---- 配色：霓虹（潮流配色，电紫 + 荧光青） ---- */
+[data-palette='neon'] {
+  --bg: #f2f4f8;
+  --orb-1: #d0c4ff;
+  --orb-2: #bff0ff;
+  --orb-3: #ffd0e8;
+  --arc: rgba(109, 74, 255, 0.14);
+  --dot: rgba(26, 26, 38, 0.055);
+
+  --surface: rgba(252, 253, 255, 0.84);
+  --surface-solid: #fcfdff;
+  --surface-soft: rgba(249, 250, 255, 0.56);
+  --field: rgba(249, 250, 255, 0.72);
+
+  --text: #1a1a26;
+  --text-2: #5b5b6e;
+  --text-3: #9494a6;
+
+  --accent: #6d4aff;
+  --accent-2: #17d1c8;
+  --accent-soft: rgba(109, 74, 255, 0.13);
+  --accent-contrast: #ffffff;
+
+  --code-key: #5b3fd6;
+  --neutral-soft: rgba(40, 40, 90, 0.05);
+  --code-punc: #a5a5b8;
+  --shadow-btn: 0 12px 28px -10px rgba(109, 74, 255, 0.55);
+}
+
+[data-palette='neon'][data-theme='dark'] {
+  --bg: #0a0a12;
+  --orb-1: #2a1a5e;
+  --orb-2: #0f3a4a;
+  --orb-3: #3a1030;
+  --arc: rgba(130, 200, 255, 0.14);
+
+  --surface: rgba(20, 20, 32, 0.8);
+  --surface-solid: #14141f;
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #eef0ff;
+  --text-2: #a8abcc;
+  --text-3: #767a9e;
+
+  --accent: #8b6cff;
+  --accent-2: #22e0d0;
+  --accent-soft: rgba(139, 108, 255, 0.2);
+  --accent-contrast: #0a0a12;
+
+  --code-key: #a99bff;
+  --code-punc: #5f6285;
+  --shadow-btn: 0 12px 28px -10px rgba(139, 108, 255, 0.5);
+}
+
+/* ---- 配色：陶土（拟物配色，阴影更厚、色更"土"） ---- */
+[data-palette='clay'] {
+  --bg: #efe8e0;
+  --orb-1: #f0cdb0;
+  --orb-2: #fff3e2;
+  --orb-3: #d9c4b4;
+  --arc: rgba(170, 130, 100, 0.16);
+  --dot: rgba(80, 60, 45, 0.06);
+
+  --surface: rgba(252, 247, 241, 0.86);
+  --surface-solid: #f8f2ea;
+  --surface-soft: rgba(250, 244, 236, 0.56);
+  --field: rgba(250, 244, 236, 0.72);
+  --border: rgba(90, 70, 55, 0.12);
+  --border-strong: rgba(90, 70, 55, 0.2);
+
+  /* 拟物的关键：投影更厚、光面更亮 */
+  --neu-out: 14px 14px 30px rgba(168, 146, 124, 0.5), -14px -14px 30px rgba(255, 255, 255, 0.95);
+  --neu-out-sm: 7px 7px 16px rgba(168, 146, 124, 0.45), -7px -7px 16px rgba(255, 255, 255, 0.92);
+  --neu-in: inset 4px 4px 10px rgba(168, 146, 124, 0.5), inset -4px -4px 10px rgba(255, 255, 255, 0.92);
+
+  --text: #33291f;
+  --text-2: #6f6053;
+  --text-3: #a3917f;
+
+  --accent: #b5744a;
+  --accent-2: #d99b6c;
+  --accent-soft: rgba(181, 116, 74, 0.13);
+  --accent-contrast: #ffffff;
+
+  --code-key: #8a5a3c;
+  --neutral-soft: rgba(90, 70, 55, 0.06);
+  --code-punc: #b6a493;
+  --shadow-btn: 0 12px 26px -10px rgba(150, 95, 60, 0.55);
+}
+
+[data-palette='clay'][data-theme='dark'] {
+  --bg: #221d18;
+  --orb-1: #4a3226;
+  --orb-2: #3a2a1e;
+  --orb-3: #443026;
+  --arc: rgba(230, 180, 140, 0.12);
+
+  --surface: rgba(44, 36, 29, 0.8);
+  --surface-solid: #2b241d;
+  --text: #f2e9de;
+  --text-2: #bfae9c;
+  --text-3: #8b7b6b;
+
+  --accent: #d99a6a;
+  --accent-2: #e8b98a;
+  --accent-soft: rgba(217, 154, 106, 0.18);
+  --accent-contrast: #1d1611;
+
+  --code-key: #e0b48c;
+  --code-punc: #6f6155;
+  --shadow-btn: 0 12px 26px -10px rgba(217, 154, 106, 0.4);
+}
+
+/* ---- 配色：墨白（极简，只有黑白灰 + 语义色） ---- */
+[data-palette='mono'] {
+  --bg: #f2f2f0;
+  --orb-1: #dcdcd8;
+  --orb-2: #ffffff;
+  --orb-3: #e2e2de;
+  --arc: rgba(60, 60, 60, 0.12);
+  --dot: rgba(20, 20, 20, 0.05);
+
+  --surface: rgba(253, 253, 252, 0.86);
+  --surface-solid: #fdfdfc;
+  --surface-soft: rgba(250, 250, 249, 0.56);
+  --field: rgba(250, 250, 249, 0.72);
+
+  --text: #1b1b1b;
+  --text-2: #5e5e5e;
+  --text-3: #9a9a9a;
+
+  --accent: #2b2b2b;
+  --accent-2: #6a6a6a;
+  --accent-soft: rgba(43, 43, 43, 0.09);
+  --accent-contrast: #ffffff;
+
+  --code-key: #3d3d3d;
+  --neutral-soft: rgba(20, 20, 20, 0.05);
+  --code-punc: #a8a8a8;
+  --shadow-btn: 0 10px 24px -10px rgba(43, 43, 43, 0.55);
+}
+
+[data-palette='mono'][data-theme='dark'] {
+  --bg: #121212;
+  --orb-1: #232323;
+  --orb-2: #1b1b1b;
+  --orb-3: #262626;
+  --arc: rgba(255, 255, 255, 0.1);
+
+  --surface: rgba(28, 28, 28, 0.82);
+  --surface-solid: #1c1c1c;
+  --text: #ededed;
+  --text-2: #a8a8a8;
+  --text-3: #747474;
+
+  --accent: #e8e8e8;
+  --accent-2: #b0b0b0;
+  --accent-soft: rgba(255, 255, 255, 0.12);
+  --accent-contrast: #121212;
+
+  --code-key: #d0d0d0;
+  --code-punc: #6a6a6a;
+  --shadow-btn: 0 10px 24px -10px rgba(255, 255, 255, 0.2);
 }
 
 /* ---- 字号档位：只改字号和控件高度，布局自动跟着走 ---- */

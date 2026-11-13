@@ -96,7 +96,7 @@ p {
   height: var(--h-ctl);
   padding: 0 20px;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--grad);
   box-shadow: var(--shadow-btn), var(--inset-top);
   color: var(--accent-contrast);
   font-size: var(--font-md);

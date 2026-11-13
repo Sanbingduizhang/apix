@@ -69,29 +69,20 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
     <Transition name="pop">
       <div v-if="open" class="panel">
         <p class="label">配色</p>
-        <button
-          v-for="item in paletteLabels"
-          :key="item.value"
-          class="option"
-          :class="{ on: item.value === palette }"
-          :title="item.hint"
-          @click="choosePalette(item.value)"
-        >
-          <span class="opt-main">
+        <!-- 两列小色卡：七套配色也放得下，不用滚 -->
+        <div class="palettes">
+          <button
+            v-for="item in paletteLabels"
+            :key="item.value"
+            class="palette"
+            :class="{ on: item.value === palette }"
+            :title="item.hint"
+            @click="choosePalette(item.value)"
+          >
             <span class="swatch" :class="item.value" />
-            {{ item.label }}
-          </span>
-          <svg v-if="item.value === palette" class="tick" width="12" height="12" viewBox="0 0 12 12">
-            <path
-              d="M2.5 6.2l2.4 2.4 4.6-5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
+            <span class="palette-name">{{ item.label }}</span>
+          </button>
+        </div>
 
         <div class="sep" />
 
@@ -179,7 +170,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
   top: calc(100% + 10px);
   right: 0;
   z-index: 40;
-  width: 176px;
+  width: 236px;
   padding: 10px;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
@@ -216,26 +207,78 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
   font-weight: 500;
 }
 
-/* 配色选项左边的小色卡：直接看到底是什么调子 */
-.opt-main {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* 配色：两列小色卡 */
+.palettes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 0 4px;
 }
 
+.palette {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: var(--font-sm);
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+
+.palette:hover {
+  background: var(--hover);
+}
+
+.palette.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.palette-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 每套配色的色卡：把这套的主色和底色缩成一个小方块 */
 .swatch {
-  width: 14px;
-  height: 14px;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
   border-radius: 5px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .swatch.nature {
-  background: linear-gradient(135deg, #1f8f86, #9fd3e0);
+  background: linear-gradient(135deg, #1f8f86, #b7dfc2);
 }
 
 .swatch.warm {
   background: linear-gradient(135deg, #7b6cf6, #ffd9bd);
+}
+
+.swatch.tide {
+  background: linear-gradient(135deg, #1d6fa5, #a9d8e8);
+}
+
+.swatch.candy {
+  background: linear-gradient(135deg, #f0568c, #a06cf6 55%, #ffb37a);
+}
+
+.swatch.neon {
+  background: linear-gradient(135deg, #6d4aff, #17d1c8);
+}
+
+.swatch.clay {
+  background: linear-gradient(135deg, #b5744a, #e8c4a0);
+}
+
+.swatch.mono {
+  background: linear-gradient(135deg, #2b2b2b, #a8a8a8);
 }
 
 .tick {
