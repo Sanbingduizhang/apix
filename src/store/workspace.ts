@@ -41,8 +41,14 @@ export function createFormRow(): FormRow {
 }
 
 /** 新建一套环境，默认各给一行空行，方便直接编辑 */
-export function createEnvironment(name: string): Environment {
-  return { id: uid('env'), name, headers: [createKeyValueRow()], vars: [createKeyValueRow()] }
+export function createEnvironment(name: string, baseUrl = ''): Environment {
+  return {
+    id: uid('env'),
+    name,
+    baseUrl,
+    headers: [createKeyValueRow()],
+    vars: [createKeyValueRow()],
+  }
 }
 
 /** 新建一个空接口 */
@@ -114,6 +120,7 @@ function normalize(data: Workspace): Workspace {
       project.activeEnvId = project.environments[0].id
     }
     for (const env of project.environments) {
+      env.baseUrl ??= ''
       env.headers ??= [createKeyValueRow()]
       env.vars ??= [createKeyValueRow()]
     }
@@ -126,9 +133,44 @@ function normalize(data: Workspace): Workspace {
     }
   }
 
-  // 「即时调试」必须存在，而且永远排第一个
-  const scratch = data.projects.find((p) => p.scratch) ?? createScratchProject()
-  data.projects = [scratch, ...data.projects.filter((p) => !p.scratch)]
+  /**
+   * 修复 id 重复。
+   *
+   * 老版本（v1）迁移过来时，项目 id 保留了下来但 scratch 标记丢了，于是会出现
+   * 两个 id 都叫 scratch 的项目：一个是新建的「即时调试」，一个是迁移过来的旧项目。
+   * 结果就是删第二个没反应（按 id 找到的永远是下标 0 那个受保护的），
+   * v-for 的 key 也是重复的。这里一次性修干净。
+   */
+  const seenIds = new Set<string>()
+  for (const project of data.projects) {
+    if (seenIds.has(project.id) || !project.id) project.id = uid('prj')
+    seenIds.add(project.id)
+  }
+
+  // 「即时调试」必须存在且唯一：先认 scratch 标记，再认固定 id
+  let scratch = data.projects.find((p) => p.scratch) ?? data.projects.find((p) => p.id === SCRATCH_ID)
+  if (scratch) {
+    scratch.id = SCRATCH_ID
+    scratch.scratch = true
+  } else {
+    scratch = createScratchProject()
+  }
+
+  // 其它项目一律不许带 scratch 标记，也不许占用固定 id，否则会"删不掉"
+  const others = data.projects.filter((p) => p !== scratch)
+  const usedIds = new Set([SCRATCH_ID])
+  for (const project of others) {
+    delete project.scratch
+    if (usedIds.has(project.id)) project.id = uid('prj')
+    usedIds.add(project.id)
+    // 接口 id 也可能撞车，顺手一起修
+    const requestIds = new Set<string>()
+    for (const request of project.requests) {
+      if (requestIds.has(request.id)) request.id = uid('req')
+      requestIds.add(request.id)
+    }
+  }
+  data.projects = [scratch, ...others]
 
   if (!data.projects.some((p) => p.id === data.activeProjectId)) {
     data.activeProjectId = scratch.id
@@ -183,6 +225,17 @@ function loadWorkspace(): Workspace {
 
 export const store = reactive<Workspace>(loadWorkspace())
 
+/**
+ * 启动时先落一次盘。
+ * loadWorkspace 会顺手修数据（补字段、修重复 id），不马上写回去的话，
+ * 磁盘上一直是旧的样子，每次打开都要再修一遍。
+ */
+try {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+} catch {
+  // 隐私模式下 localStorage 可能不可写，忽略即可，不影响使用
+}
+
 /** 写回 localStorage，250ms 防抖，避免边打字边写盘 */
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 watch(
@@ -208,6 +261,9 @@ export const currentEnvironment = computed<Environment | undefined>(() =>
   activeProject.value?.environments.find((e) => e.id === activeProject.value!.activeEnvId),
 )
 
+/** 当前环境的请求前缀，没配就是空字符串 */
+export const activeBaseUrl = computed(() => currentEnvironment.value?.baseUrl?.trim() ?? '')
+
 // ---------------- 项目 ----------------
 
 /** 进入项目：默认选中根目录下的第一个接口 */
@@ -231,11 +287,18 @@ export function renameProject(projectId: string, name: string) {
   if (project && !project.scratch && name.trim()) project.name = name.trim()
 }
 
-export function removeProject(projectId: string) {
-  const index = store.projects.findIndex((p) => p.id === projectId)
-  if (index < 0 || store.projects[index].scratch) return
-  store.projects.splice(index, 1)
-  if (store.activeProjectId === projectId) openProject(store.projects[0].id)
+/**
+ * 删除项目。
+ * 传对象而不是 id：万一手改的数据里出现同 id 的项目，按 id 删会删错甚至删不动，
+ * 按对象引用删就永远是对的那一个。
+ */
+export function removeProject(target: Project) {
+  if (!target || target.scratch || target.id === SCRATCH_ID) return
+  store.projects = store.projects.filter((p) => p !== target)
+  if (store.activeProjectId === target.id) {
+    store.activeProjectId = store.projects[0].id
+    store.activeRequestId = store.projects[0].requests[0]?.id ?? ''
+  }
 }
 
 // ---------------- 目录 ----------------
@@ -365,9 +428,7 @@ export interface EffectiveHeader {
   key: string
   value: string
   source: '全局' | '环境' | '请求'
-}
-
-/**
+}/**
  * 合并三层请求头：全局参数 -> 环境参数 -> 请求自己的。
  * 同名的后面的覆盖前面的，所以优先级是 请求 > 环境 > 全局。
  */
@@ -417,4 +478,27 @@ export function availableVariables(): VariableHint[] {
     }
   }
   return hints
+}
+
+// ---------------- 地址拼接 ----------------
+
+/** 是不是一条完整地址（自带协议） */
+export function isAbsoluteUrl(url: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(url.trim())
+}
+
+/**
+ * 把接口里填的地址拼成真正要请求的地址：
+ *   1. 先把 {{变量}} 换成真实值
+ *   2. 自带协议（http:// 之类）就原样用，方便临时贴一条完整地址来调
+ *   3. 否则拼上当前环境的请求前缀，两边的斜杠多退少补
+ */
+export function resolveUrl(raw: string): string {
+  const url = resolveVariables(raw.trim())
+  if (!url) return ''
+  if (isAbsoluteUrl(url)) return url
+
+  const base = resolveVariables(activeBaseUrl.value).trim()
+  if (!base) return url
+  return `${base.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
 }

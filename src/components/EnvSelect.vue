@@ -59,7 +59,10 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
           :class="{ active: env.id === activeProject?.activeEnvId }"
           @click="choose(env.id)"
         >
-          <span class="opt-name">{{ env.name }}</span>
+          <span class="opt-main">
+            <span class="opt-name">{{ env.name }}</span>
+            <span class="opt-prefix">{{ env.baseUrl || '未设置请求前缀' }}</span>
+          </span>
           <span class="count">{{ env.vars.filter((v) => v.enabled && v.key).length }} 变量</span>
         </button>
 
@@ -132,8 +135,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  height: 34px;
-  padding: 0 10px;
+  padding: 7px 10px;
   border-radius: var(--radius-sm);
   font-size: var(--font-sm);
   text-align: left;
@@ -147,6 +149,24 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
 .option.active {
   color: var(--accent);
   font-weight: 500;
+}
+
+.opt-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 前缀用等宽字，一眼能看出切过去打的是哪台机器 */
+.opt-prefix {
+  overflow: hidden;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .opt-name {

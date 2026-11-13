@@ -37,6 +37,11 @@ export interface Folder {
 export interface Environment {
   id: string
   name: string
+  /**
+   * 请求前缀（前置 URL），比如 https://api.dev.example.com
+   * 接口里的地址只写 /users/1 时，会自动拼在它后面
+   */
+  baseUrl: string
   /** 环境参数（请求头）：这个环境下的请求都会带上 */
   headers: KeyValueRow[]
   /** 环境变量：被 {{名字}} 引用 */

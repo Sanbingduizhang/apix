@@ -140,14 +140,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <!-- 某个环境 -->
             <template v-if="selectedEnv">
               <div class="head">
-                <div class="field">
-                  <label>环境名称</label>
-                  <input
-                    v-model="selectedEnv.name"
-                    class="text-input"
-                    @blur="selectedEnv.name = selectedEnv.name.trim() || '未命名环境'"
-                  />
+                <div class="fields">
+                  <div class="field">
+                    <label>环境名称</label>
+                    <input
+                      v-model="selectedEnv.name"
+                      class="text-input"
+                      @blur="selectedEnv.name = selectedEnv.name.trim() || '未命名环境'"
+                    />
+                  </div>
+                  <div class="field">
+                    <label>请求前缀</label>
+                    <input
+                      v-model="selectedEnv.baseUrl"
+                      class="text-input mono"
+                      placeholder="https://api.example.com"
+                      spellcheck="false"
+                    />
+                  </div>
                 </div>
+
                 <div class="head-actions">
                   <button
                     class="ghost"
@@ -165,6 +177,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                   </button>
                 </div>
               </div>
+
+              <p class="prefix-hint">
+                接口地址只写路径（例如 <code>/users/1</code>）时会自动拼在请求前缀后面；写完整地址（以
+                <code>http://</code> 或 <code>https://</code> 开头）则直接使用，不走前缀。
+              </p>
 
               <div class="block">
                 <p class="block-title">
@@ -382,10 +399,10 @@ h2 {
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 22px;
+  gap: 14px 16px;
+  margin-bottom: 20px;
 }
 
 .field {
@@ -393,6 +410,42 @@ h2 {
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+}
+
+/* 两个输入框平分一行；窄了自动换行，不会把右边按钮挤成两行字 */
+.fields {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 14px 16px;
+  min-width: 0;
+}
+
+.fields .field {
+  flex: 1 1 170px;
+}
+
+.fields .text-input {
+  width: 100%;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+}
+
+.prefix-hint {
+  margin: -8px 0 18px;
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  line-height: 1.8;
+}
+
+.prefix-hint code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--neutral-soft);
+  font-family: var(--mono);
 }
 
 label {
@@ -423,9 +476,16 @@ label {
   font-size: var(--font-sm);
 }
 
+/* 按钮单独占一行、靠右：和两个输入框挤在一行会被压成两行字 */
 .head-actions {
   display: flex;
+  flex: 1 0 100%;
+  justify-content: flex-end;
   gap: 8px;
+}
+
+.head-actions button {
+  white-space: nowrap;
 }
 
 .ghost,

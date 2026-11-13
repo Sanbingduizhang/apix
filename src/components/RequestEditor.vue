@@ -7,7 +7,13 @@
  */
 import { computed, ref } from 'vue'
 import type { ApiRequest, BodyType } from '../types'
-import { availableVariables, effectiveHeaders } from '../store/workspace'
+import {
+  activeBaseUrl,
+  availableVariables,
+  effectiveHeaders,
+  isAbsoluteUrl,
+  resolveUrl,
+} from '../store/workspace'
 import KeyValueEditor from './KeyValueEditor.vue'
 import FormEditor from './FormEditor.vue'
 import MethodSelect from './MethodSelect.vue'
@@ -17,7 +23,7 @@ const props = defineProps<{
   sending: boolean
 }>()
 
-const emit = defineEmits<{ send: [] }>()
+const emit = defineEmits<{ send: []; settings: [] }>()
 
 const BODY_TYPES: { value: BodyType; label: string }[] = [
   { value: 'none', label: '无' },
@@ -54,6 +60,19 @@ const bodyPlaceholder = computed(() =>
   props.request.bodyType === 'json' ? '{\n  "name": "apix"\n}' : '请求体内容…',
 )
 
+/** 当前环境的请求前缀 */
+const baseUrl = computed(() => activeBaseUrl.value)
+
+/** 地址里已经写了完整地址时，前缀就不显示了（完整地址优先） */
+const showPrefix = computed(() => !isAbsoluteUrl(props.request.url))
+
+const urlPlaceholder = computed(() =>
+  showPrefix.value ? '/users/1（只写路径，前缀自动拼上）' : 'https://api.example.com/users/1',
+)
+
+/** 真正会请求的地址，挂在输入框的 title 上，鼠标一停就能看到 */
+const fullUrl = computed(() => resolveUrl(props.request.url))
+
 /** 把 JSON 重新缩进排版；格式不对就提示一下，不弹窗打断操作 */
 function beautify() {
   try {
@@ -68,18 +87,39 @@ function beautify() {
 
 <template>
   <section class="editor">
-    <!-- 地址栏 -->
+    <!-- 地址栏：方法 + 请求前缀 + 路径，前缀来自当前环境 -->
     <div class="bar">
       <MethodSelect :model-value="request.method" @update:model-value="request.method = $event" />
 
-      <input
-        v-model="request.url"
-        class="url"
-        placeholder="https://api.example.com/users/1"
-        spellcheck="false"
-        autocomplete="off"
-        @keydown.enter.exact="emit('send')"
-      />
+      <div class="url-box">
+        <!-- 用 span 而不是 button：button 在 flex 行里会被浏览器摆到容器外，高度也塌陷 -->
+        <span
+          v-if="showPrefix"
+          class="prefix"
+          :class="{ unset: !baseUrl }"
+          role="button"
+          tabindex="0"
+          :title="
+            baseUrl
+              ? `请求前缀（来自当前环境）：${baseUrl}，点一下去修改`
+              : '还没有设置请求前缀，点一下去设置'
+          "
+          @click="emit('settings')"
+          @keydown.enter.prevent="emit('settings')"
+        >
+          {{ baseUrl || '设置前缀' }}
+        </span>
+
+        <input
+          v-model="request.url"
+          class="url"
+          :placeholder="urlPlaceholder"
+          :title="fullUrl"
+          spellcheck="false"
+          autocomplete="off"
+          @keydown.enter.exact="emit('send')"
+        />
+      </div>
 
       <button class="send" :disabled="sending" @click="emit('send')">
         {{ sending ? '发送中' : '发送' }}
@@ -157,7 +197,7 @@ function beautify() {
           spellcheck="false"
         />
 
-        <p v-else class="empty">这个请求没有请求体</p>
+        <p v-else class="no-body">这个请求没有请求体</p>
       </template>
     </div>
   </section>
@@ -178,22 +218,66 @@ function beautify() {
   flex: 0 0 auto;
 }
 
-.url {
+/* 地址栏：三段拼成一个整体，像一条命令输入框 */
+.url-box {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
   height: var(--h-ctl);
-  padding: 0 14px;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--field);
-  font-family: var(--mono);
-  font-size: var(--font-sm);
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
-.url:focus {
+.url-box:focus-within {
   border-color: var(--accent);
   background: var(--surface-solid);
   box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* 前缀：只读展示，点一下去设置里改 */
+.prefix {
+  flex: 0 1 auto;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  /* button/span 作为 flex 子项不一定会被拉伸，这里给个明确高度，否则会被父级 overflow 裁掉 */
+  height: calc(var(--h-ctl) - 2px);
+  padding: 0 13px;
+  border-right: 1px solid var(--border);
+  background: var(--neutral-soft);
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s;
+}
+
+.prefix:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* 还没配前缀时，用强调色提示"这里可以点" */
+.prefix.unset {
+  color: var(--accent);
+  font-family: var(--sans);
+}
+
+.url {
+  flex: 1;
+  min-width: 0;
+  padding: 0 14px;
+  border: none;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
 }
 
 .send {
@@ -311,13 +395,18 @@ function beautify() {
   font-size: var(--font-xs);
 }
 
+/* 表区做成一张卡片：内容有边界，不会白成一片 */
 .pane {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  margin: 0 18px 18px;
+  padding: 10px 12px 14px;
   overflow: auto;
-  padding: 4px 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
 }
 
 .body-input {
@@ -417,7 +506,8 @@ function beautify() {
   font-size: var(--font-xs);
 }
 
-.empty {
+/* 类名别用 .empty 这种大路货，之前它把地址栏前缀的 margin 顶歪了 */
+.no-body {
   margin: 26px 0;
   color: var(--text-3);
   font-size: var(--font-sm);

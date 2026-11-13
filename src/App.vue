@@ -15,7 +15,7 @@ import ContextMenu from './components/ContextMenu.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import type { ApiRequest } from './types'
-import { activeRequest, effectiveHeaders, resolveVariables } from './store/workspace'
+import { activeRequest, effectiveHeaders, isAbsoluteUrl, resolveUrl, resolveVariables } from './store/workspace'
 import { getFile } from './store/fileCache'
 import { sendHttpRequest, type FormField, type SendResult } from './api/http'
 
@@ -83,7 +83,7 @@ function buildPayload(request: ApiRequest) {
 
   return {
     method: request.method,
-    url: resolveVariables(request.url.trim()),
+    url: resolveUrl(request.url),
     headers,
     body,
     formFields,
@@ -94,7 +94,15 @@ async function handleSend() {
   const request = activeRequest.value
   if (!request || sending.value) return
 
-  if (!request.url.trim()) {
+  // 先把地址拼好（可能要用到环境前缀），不合法就不发出去
+  const target = resolveUrl(request.url)
+  const problem = !target
+    ? '请先填写请求地址'
+    : !isAbsoluteUrl(target)
+      ? '地址要以 http:// 或 https:// 开头，或者给当前环境设置一个请求前缀'
+      : ''
+
+  if (problem) {
     response.value = {
       status: 0,
       statusText: '',
@@ -102,7 +110,7 @@ async function handleSend() {
       size: 0,
       headers: [],
       body: '',
-      error: '请先填写请求地址',
+      error: problem,
     }
     return
   }
@@ -169,6 +177,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <!-- 背景装饰：一团柔光 + 两道缓慢转动的弧线，纯 CSS 画的，不占 DOM 逻辑 -->
+  <div class="ambient" aria-hidden="true">
+    <span class="orb orb-1" />
+    <span class="orb orb-2" />
+    <span class="arc arc-1" />
+    <span class="arc arc-2" />
+    <span class="grid" />
+  </div>
+
   <ProjectList v-if="view === 'list'" @open="view = 'project'" />
 
   <div v-else class="project-view">
@@ -184,6 +201,7 @@ onBeforeUnmount(() => {
             :request="activeRequest"
             :sending="sending"
             @send="handleSend"
+            @settings="settingsOpen = true"
           />
           <div v-else class="none">
             <p>从左侧选择一个接口</p>
