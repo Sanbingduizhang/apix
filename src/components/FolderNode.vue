@@ -68,10 +68,10 @@ function onContextMenu(event: MouseEvent) {
 </script>
 
 <template>
-  <div>
+  <div class="node">
     <div
       class="folder"
-      :style="{ paddingLeft: `${8 + depth * 16}px` }"
+      :style="{ paddingLeft: `${6 + depth * 16}px` }"
       @click="open = !open"
       @contextmenu.stop="onContextMenu"
     >
@@ -82,6 +82,22 @@ function onContextMenu(event: MouseEvent) {
           stroke="currentColor"
           stroke-width="1.4"
           stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+
+      <!-- 目录图标：一个实心 + 描边的小文件夹 -->
+      <svg class="icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+        <path
+          d="M1.6 4.5c0-.6.4-1 1-1h2.3L6.1 4.9h5.3c.6 0 1 .4 1 1v4.4c0 .6-.4 1-1 1H2.6c-.6 0-1-.4-1-1V4.5z"
+          fill="currentColor"
+          fill-opacity="0.16"
+        />
+        <path
+          d="M1.6 4.5c0-.6.4-1 1-1h2.3L6.1 4.9h5.3c.6 0 1 .4 1 1v4.4c0 .6-.4 1-1 1H2.6c-.6 0-1-.4-1-1V4.5z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.1"
           stroke-linejoin="round"
         />
       </svg>
@@ -101,10 +117,14 @@ function onContextMenu(event: MouseEvent) {
       <span v-if="count" class="count">{{ count }}</span>
     </div>
 
-    <template v-if="open">
+    <div
+      v-if="open"
+      class="children"
+      :style="{ '--guide': `${6 + depth * 16 + 15}px` }"
+    >
       <FolderNode v-for="item in childFolders" :key="item.id" :folder="item" :depth="depth + 1" />
       <RequestItem v-for="item in childRequests" :key="item.id" :request="item" :depth="depth + 1" />
-    </template>
+    </div>
   </div>
 </template>
 
@@ -135,6 +155,31 @@ function onContextMenu(event: MouseEvent) {
 
 .chevron.open {
   transform: rotate(90deg);
+}
+
+.icon {
+  flex: 0 0 auto;
+  color: var(--text-3);
+}
+
+.folder:hover .icon {
+  color: var(--accent);
+}
+
+/* 子级左侧一条虚线，把层级关系画出来 */
+.children {
+  position: relative;
+}
+
+.children::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: var(--guide);
+  border-left: 1px dashed var(--border-strong);
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .name {

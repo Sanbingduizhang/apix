@@ -47,7 +47,7 @@ function onContextMenu(event: MouseEvent) {
   <div
     class="item"
     :class="{ on: request.id === store.activeRequestId }"
-    :style="{ paddingLeft: `${10 + depth * 16}px` }"
+    :style="{ paddingLeft: `${depth === 0 ? 24 : 28 + depth * 16}px` }"
     @click="selectRequest(request.id)"
     @contextmenu.stop="onContextMenu"
   >
