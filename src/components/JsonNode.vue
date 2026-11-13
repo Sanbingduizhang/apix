@@ -124,11 +124,11 @@ const text = computed(() => {
 }
 
 .key {
-  color: #43506c;
+  color: var(--code-key);
 }
 
 .punc {
-  color: #b3b2ab;
+  color: var(--code-punc);
 }
 
 .val.string {
@@ -140,7 +140,7 @@ const text = computed(() => {
 }
 
 .val.boolean {
-  color: #7048b6;
+  color: var(--purple);
 }
 
 .val.null,

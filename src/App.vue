@@ -1,21 +1,26 @@
 <script setup lang="ts">
 /**
- * 应用外壳：左侧栏 + 右侧（请求编辑 / 响应）上下分栏
+ * 应用外壳
  *
- * 这里只做三件事：
- *   1. 把请求交给 api/http.ts 去发；
- *   2. 管理"发送中 / 响应"这两个状态；
- *   3. 处理 ⌘+Enter 发送、以及中间那条可拖拽的分割线。
+ * 两个页面：项目列表（首页）和项目内工作区。
+ * 工作区 = 顶栏 + 左侧接口树 + 右侧（请求编辑 / 响应）上下分栏。
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import ProjectList from './components/ProjectList.vue'
+import TopBar from './components/TopBar.vue'
 import Sidebar from './components/Sidebar.vue'
 import RequestEditor from './components/RequestEditor.vue'
 import ResponsePanel from './components/ResponsePanel.vue'
-import { activeRequest, addRequest } from './store/workspace'
+import ContextMenu from './components/ContextMenu.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
+import type { ApiRequest } from './types'
+import { activeRequest, resolveVariables } from './store/workspace'
 import { sendHttpRequest, type SendResult } from './api/http'
 
-const response = ref<SendResult | null>(null)
+const view = ref<'list' | 'project'>('list')
+const settingsOpen = ref(false)
 const sending = ref(false)
+const response = ref<SendResult | null>(null)
 
 // 切换接口时清空上一条响应，避免看串
 watch(
@@ -25,7 +30,53 @@ watch(
   },
 )
 
-/** 发送当前请求 */
+/**
+ * 把界面上的请求整理成可以发出去的形状：
+ * 1. 变量替换（{{baseUrl}} 之类）
+ * 2. 表单类型序列化成 urlencoded 字符串
+ * 3. 没手动写 Content-Type 时，按请求体类型自动补一个
+ */
+function buildPayload(request: ApiRequest) {
+  const headers = request.headers
+    .filter((row) => row.enabled && row.key.trim())
+    .map((row) => ({
+      id: row.id,
+      key: resolveVariables(row.key),
+      value: resolveVariables(row.value),
+      enabled: true,
+    }))
+
+  const hasContentType = headers.some((row) => row.key.toLowerCase() === 'content-type')
+  let body: string | null = null
+
+  if (request.bodyType === 'json') {
+    body = resolveVariables(request.body)
+    if (!hasContentType) {
+      headers.push({ id: 'auto', key: 'Content-Type', value: 'application/json', enabled: true })
+    }
+  } else if (request.bodyType === 'text') {
+    body = resolveVariables(request.body)
+  } else if (request.bodyType === 'form') {
+    const params = new URLSearchParams()
+    for (const row of request.form) {
+      if (row.enabled && row.key.trim()) {
+        params.append(resolveVariables(row.key), resolveVariables(row.value))
+      }
+    }
+    body = params.toString()
+    if (!hasContentType) {
+      headers.push({
+        id: 'auto',
+        key: 'Content-Type',
+        value: 'application/x-www-form-urlencoded',
+        enabled: true,
+      })
+    }
+  }
+
+  return { method: request.method, url: resolveVariables(request.url.trim()), headers, body }
+}
+
 async function handleSend() {
   const request = activeRequest.value
   if (!request || sending.value) return
@@ -45,14 +96,8 @@ async function handleSend() {
 
   sending.value = true
   response.value = null
-
   try {
-    response.value = await sendHttpRequest({
-      method: request.method,
-      url: request.url.trim(),
-      headers: request.headers,
-      body: request.bodyType === 'none' ? null : request.body,
-    })
+    response.value = await sendHttpRequest(buildPayload(request))
   } catch (error: any) {
     response.value = {
       status: 0,
@@ -68,18 +113,19 @@ async function handleSend() {
   }
 }
 
-/** ⌘ + Enter 也可以发送 */
+/** ⌘ + Enter 发送 */
 function onKeydown(event: KeyboardEvent) {
+  if (view.value !== 'project') return
   if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
     event.preventDefault()
     handleSend()
   }
 }
 
-// ---------- 上下分栏拖拽 ----------
+// ---------------- 上下分栏拖拽 ----------------
 
 const mainRef = ref<HTMLElement | null>(null)
-const editorHeight = ref(42) // 上半部分占多少（百分比）
+const editorHeight = ref(42)
 let dragging = false
 
 function startDrag(event: MouseEvent) {
@@ -93,7 +139,6 @@ function onDrag(event: MouseEvent) {
   if (!dragging || !mainRef.value) return
   const rect = mainRef.value.getBoundingClientRect()
   const percent = ((event.clientY - rect.top) / rect.height) * 100
-  // 留出上限下限，避免拖成一条线
   editorHeight.value = Math.min(78, Math.max(22, percent))
 }
 
@@ -111,35 +156,51 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="layout">
-    <Sidebar />
+  <ProjectList v-if="view === 'list'" @open="view = 'project'" />
 
-    <main ref="mainRef" class="main">
-      <div class="editor-slot" :style="{ height: `${editorHeight}%` }">
-        <RequestEditor
-          v-if="activeRequest"
-          :request="activeRequest"
-          :sending="sending"
-          @send="handleSend"
-        />
-        <div v-else class="none">
-          <p>这个项目还没有接口</p>
-          <button @click="addRequest()">新建一个接口</button>
+  <div v-else class="project-view">
+    <TopBar @back="view = 'list'" @settings="settingsOpen = true" />
+
+    <div class="workspace">
+      <Sidebar />
+
+      <main ref="mainRef" class="main">
+        <div class="editor-slot" :style="{ height: `${editorHeight}%` }">
+          <RequestEditor
+            v-if="activeRequest"
+            :request="activeRequest"
+            :sending="sending"
+            @send="handleSend"
+          />
+          <div v-else class="none">
+            <p>从左侧选择一个接口</p>
+            <span>右键或点 + 可以新建接口 / 目录</span>
+          </div>
         </div>
-      </div>
 
-      <div class="splitter" @mousedown="startDrag" />
+        <div class="splitter" @mousedown="startDrag" />
 
-      <ResponsePanel :response="response" :sending="sending" />
-    </main>
+        <ResponsePanel :response="response" :sending="sending" />
+      </main>
+    </div>
   </div>
+
+  <ContextMenu />
+  <SettingsDialog :open="settingsOpen" @close="settingsOpen = false" />
 </template>
 
 <style scoped>
-.layout {
+.project-view {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
 }
 
 .main {
@@ -162,7 +223,7 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-/* 分割线本身很细，鼠标划过时变强调色，提示"这里能拖" */
+/* 分割线很细，划过时变强调色，提示这里能拖 */
 .splitter {
   position: relative;
   flex: 0 0 7px;
@@ -189,7 +250,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
   height: 100%;
   color: var(--text-3);
   font-size: 12.5px;
@@ -197,19 +258,10 @@ onBeforeUnmount(() => {
 
 .none p {
   margin: 0;
-}
-
-.none button {
-  padding: 5px 12px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
   color: var(--text-2);
-  font-size: 12.5px;
-  transition: color 0.12s, border-color 0.12s;
 }
 
-.none button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.none span {
+  font-size: 11.5px;
 }
 </style>

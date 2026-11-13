@@ -140,22 +140,22 @@ async function copyBody() {
 
 .status.ok {
   color: var(--green);
-  background: #eaf6f0;
+  background: var(--green-soft);
 }
 
 .status.warn {
   color: var(--amber);
-  background: #fbf2e3;
+  background: var(--amber-soft);
 }
 
 .status.err {
   color: var(--red);
-  background: #fcecec;
+  background: var(--red-soft);
 }
 
 .status.info {
   color: var(--text-2);
-  background: #f1f1ee;
+  background: var(--neutral-soft);
 }
 
 .muted {
@@ -177,7 +177,7 @@ async function copyBody() {
   display: flex;
   padding: 2px;
   border-radius: 7px;
-  background: #f4f4f1;
+  background: var(--pill);
 }
 
 .switch button {
@@ -191,7 +191,7 @@ async function copyBody() {
 .switch button.on {
   color: var(--text);
   background: var(--surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+  box-shadow: var(--shadow-card);
 }
 
 .copy {
@@ -243,9 +243,9 @@ async function copyBody() {
 
 .error {
   padding: 12px 14px;
-  border: 1px solid #f3d6d6;
+  border: 1px solid var(--red-soft);
   border-radius: var(--radius);
-  background: #fdf5f5;
+  background: var(--red-soft);
 }
 
 .error-title {
@@ -282,11 +282,11 @@ async function copyBody() {
 }
 
 .h-row:hover {
-  background: #fbfbfa;
+  background: var(--field);
 }
 
 .h-key {
-  color: #43506c;
+  color: var(--code-key);
   word-break: break-all;
 }
 

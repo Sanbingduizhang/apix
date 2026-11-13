@@ -1,44 +1,141 @@
 <script setup lang="ts">
 /**
- * 请求头编辑器（一个 key-value 表格）
+ * key-value 表格（请求头 / 表单 / 变量都用它）
  *
- * 这个组件故意做得很薄：它不复制数据，直接修改传进来的 rows 数组，
- * 因为 rows 来自 store，是响应式的，改了就自动存盘。
+ * 传了 suggestions 就会出现"键名候选"：点输入框时弹出常用请求头，
+ * 免得每次手打 Content-Type 拼错。
  */
-import type { HeaderRow } from '../types'
-import { createHeaderRow } from '../store/workspace'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import type { KeyValueRow } from '../types'
+import { createKeyValueRow } from '../store/workspace'
 
-const props = defineProps<{ rows: HeaderRow[] }>()
+const props = withDefaults(
+  defineProps<{
+    rows: KeyValueRow[]
+    /** 键名候选；不传就没有下拉 */
+    suggestions?: string[]
+    keyPlaceholder?: string
+    valuePlaceholder?: string
+  }>(),
+  { suggestions: () => [], keyPlaceholder: '键名', valuePlaceholder: '值' },
+)
 
-/** 追加一个空行 */
+/** 当前正在编辑的行，-1 表示没有 */
+const focused = ref(-1)
+/** 候选浮层的位置（用 fixed 定位，避免被编辑区的滚动容器裁掉） */
+const anchor = ref({ left: 0, top: 0, width: 232, maxHeight: 240 })
+
+const activeRow = computed<KeyValueRow | null>(() =>
+  focused.value >= 0 ? (props.rows[focused.value] ?? null) : null,
+)
+
+const activeSuggestions = computed(() => (activeRow.value ? suggestionsFor(activeRow.value) : []))
+
 function addRow() {
-  props.rows.push(createHeaderRow())
+  props.rows.push(createKeyValueRow())
 }
 
-/** 删掉某一行 */
 function removeRow(index: number) {
   props.rows.splice(index, 1)
+  focused.value = -1
 }
+
+/** 候选列表：按输入内容过滤，并且去掉别的行已经用过的键 */
+function suggestionsFor(row: KeyValueRow): string[] {
+  if (!props.suggestions.length) return []
+  const keyword = row.key.trim().toLowerCase()
+  const used = new Set(props.rows.filter((r) => r !== row).map((r) => r.key.trim().toLowerCase()))
+  return props.suggestions
+    .filter((item) => item.toLowerCase().includes(keyword) && !used.has(item.toLowerCase()))
+    .slice(0, 8)
+}
+
+/** 聚焦时记下输入框位置，候选框贴着它下面弹出来 */
+function onFocus(event: FocusEvent, index: number) {
+  const rect = (event.target as HTMLElement).getBoundingClientRect()
+  focused.value = index
+  anchor.value = {
+    left: rect.left,
+    top: rect.bottom + 3,
+    width: Math.max(232, rect.width),
+    maxHeight: Math.max(120, window.innerHeight - rect.bottom - 16),
+  }
+}
+
+/** 选中候选（mousedown.prevent 保证输入框不会先失焦） */
+function pick(row: KeyValueRow, value: string) {
+  row.key = value
+  focused.value = -1
+}
+
+/** 页面一滚动，位置就不准了，直接收起 */
+function onScroll() {
+  if (focused.value >= 0) focused.value = -1
+}
+
+onMounted(() => window.addEventListener('scroll', onScroll, true))
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
+
 </script>
 
 <template>
   <div class="kv">
-    <!-- 有内容时才显示表头，空表格更干净 -->
     <div v-if="rows.length" class="row head">
       <span />
-      <span>键</span>
-      <span>值</span>
+      <span>{{ keyPlaceholder }}</span>
+      <span>{{ valuePlaceholder }}</span>
       <span />
     </div>
 
     <div v-for="(row, index) in rows" :key="row.id" class="row">
       <input v-model="row.enabled" type="checkbox" class="check" />
-      <input v-model="row.key" class="cell mono" placeholder="键名" spellcheck="false" />
-      <input v-model="row.value" class="cell mono" placeholder="值" spellcheck="false" />
+
+      <div class="key-cell">
+        <input
+          v-model="row.key"
+          class="cell mono"
+          :placeholder="keyPlaceholder"
+          spellcheck="false"
+          @focus="onFocus($event, index)"
+          @blur="focused = -1"
+        />
+      </div>
+
+      <input
+        v-model="row.value"
+        class="cell mono"
+        :placeholder="valuePlaceholder"
+        spellcheck="false"
+        @focus="focused = -1"
+      />
+
       <button class="remove" title="删除这一行" @click="removeRow(index)">×</button>
     </div>
 
     <button class="add" @click="addRow">+ 添加一行</button>
+
+    <!-- 候选浮层拆到 body 上，才不会被外面的滚动容器裁掉 -->
+    <Teleport to="body">
+      <div
+        v-if="activeSuggestions.length"
+        class="suggest"
+        :style="{
+          left: `${anchor.left}px`,
+          top: `${anchor.top}px`,
+          width: `${anchor.width}px`,
+          maxHeight: `${anchor.maxHeight}px`,
+        }"
+      >
+        <button
+          v-for="item in activeSuggestions"
+          :key="item"
+          class="suggest-item"
+          @mousedown.prevent="activeRow && pick(activeRow, item)"
+        >
+          {{ item }}
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -59,7 +156,7 @@ function removeRow(index: number) {
 }
 
 .row:hover {
-  background: #fbfbfa;
+  background: var(--field);
 }
 
 .head {
@@ -77,6 +174,11 @@ function removeRow(index: number) {
   height: 13px;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+.key-cell {
+  position: relative;
+  min-width: 0;
 }
 
 .cell {
@@ -101,6 +203,33 @@ function removeRow(index: number) {
 .mono {
   font-family: var(--mono);
   font-size: 12.5px;
+}
+
+/* 用 fixed 定位，坐标由 JS 按输入框位置算 */
+.suggest {
+  position: fixed;
+  z-index: 95;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+
+.suggest-item {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: left;
+}
+
+.suggest-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .remove {

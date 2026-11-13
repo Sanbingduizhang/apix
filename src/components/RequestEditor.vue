@@ -2,12 +2,13 @@
 /**
  * 请求编辑区：方法 + 地址 + 请求头 / 请求体
  *
- * 注意：这里没有用 v-model 向父组件抛事件，而是直接修改 props.request 上的字段。
- * 因为 request 是 store 里的响应式对象，直接改最省代码，改完自动存盘。
+ * 直接修改 props.request 上的字段（它是 store 里的响应式对象），改完自动存盘，
+ * 所以不需要向父组件抛一堆 v-model 事件。
  */
 import { computed, ref } from 'vue'
 import type { ApiRequest, BodyType } from '../types'
 import KeyValueEditor from './KeyValueEditor.vue'
+import MethodSelect from './MethodSelect.vue'
 
 const props = defineProps<{
   request: ApiRequest
@@ -16,17 +17,32 @@ const props = defineProps<{
 
 const emit = defineEmits<{ send: [] }>()
 
-const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
-
 const BODY_TYPES: { value: BodyType; label: string }[] = [
   { value: 'none', label: '无' },
   { value: 'json', label: 'JSON' },
+  { value: 'form', label: '表单' },
   { value: 'text', label: '文本' },
 ]
 
-const tab = ref<'headers' | 'body'>('headers')
+/** 常用请求头，点"键名"输入框时作为候选 */
+const HEADER_SUGGESTIONS = [
+  'Accept',
+  'Accept-Language',
+  'Authorization',
+  'Cache-Control',
+  'Content-Type',
+  'Cookie',
+  'Origin',
+  'Referer',
+  'User-Agent',
+  'X-API-Key',
+  'X-Request-Id',
+  'X-Trace-Id',
+]
 
-/** 只有填了键名、且被勾选的请求头才计数 */
+const tab = ref<'headers' | 'body'>('headers')
+const formatError = ref('')
+
 const headerCount = computed(
   () => props.request.headers.filter((h) => h.enabled && h.key.trim()).length,
 )
@@ -34,20 +50,24 @@ const headerCount = computed(
 const bodyPlaceholder = computed(() =>
   props.request.bodyType === 'json' ? '{\n  "name": "apix"\n}' : '请求体内容…',
 )
+
+/** 把 JSON 重新缩进排版；格式不对就提示一下，不弹窗打断操作 */
+function beautify() {
+  try {
+    props.request.body = JSON.stringify(JSON.parse(props.request.body), null, 2)
+    formatError.value = ''
+  } catch {
+    formatError.value = 'JSON 格式有误'
+    setTimeout(() => (formatError.value = ''), 2000)
+  }
+}
 </script>
 
 <template>
   <section class="editor">
-    <!-- 请求地址栏 -->
+    <!-- 地址栏 -->
     <div class="bar">
-      <div class="method-wrap">
-        <select v-model="request.method" class="method" :class="`m-${request.method}`">
-          <option v-for="method in METHODS" :key="method" :value="method">{{ method }}</option>
-        </select>
-        <svg class="chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-          <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </div>
+      <MethodSelect :model-value="request.method" @update:model-value="request.method = $event" />
 
       <input
         v-model="request.url"
@@ -63,39 +83,62 @@ const bodyPlaceholder = computed(() =>
       </button>
     </div>
 
-    <!-- 请求头 / 请求体 切换 -->
+    <!-- 请求头 / 请求体 -->
     <div class="tabs">
-      <button class="tab" :class="{ on: tab === 'headers' }" @click="tab = 'headers'">
-        请求头<span v-if="headerCount" class="count">{{ headerCount }}</span>
-      </button>
-      <button class="tab" :class="{ on: tab === 'body' }" @click="tab = 'body'">
-        请求体<span v-if="request.bodyType !== 'none'" class="dot" />
-      </button>
-      <span class="hint">⌘↵ 发送</span>
+      <div class="tab-group">
+        <button class="tab" :class="{ on: tab === 'headers' }" @click="tab = 'headers'">
+          请求头<span v-if="headerCount" class="count">{{ headerCount }}</span>
+        </button>
+        <button class="tab" :class="{ on: tab === 'body' }" @click="tab = 'body'">
+          请求体<span v-if="request.bodyType !== 'none'" class="dot" />
+        </button>
+      </div>
+
+      <div v-if="tab === 'body'" class="body-tools">
+        <span v-if="formatError" class="format-error">{{ formatError }}</span>
+        <button
+          v-for="item in BODY_TYPES"
+          :key="item.value"
+          class="text-btn"
+          :class="{ on: request.bodyType === item.value }"
+          @click="request.bodyType = item.value"
+        >
+          {{ item.label }}
+        </button>
+
+        <!-- 只有 JSON 才需要格式化 -->
+        <template v-if="request.bodyType === 'json'">
+          <span class="divider" />
+          <button class="text-btn" @click="beautify">格式化</button>
+        </template>
+      </div>
     </div>
 
     <div class="pane">
-      <KeyValueEditor v-if="tab === 'headers'" :rows="request.headers" />
+      <KeyValueEditor
+        v-if="tab === 'headers'"
+        :rows="request.headers"
+        :suggestions="HEADER_SUGGESTIONS"
+        key-placeholder="键名"
+        value-placeholder="值"
+      />
 
       <template v-else>
-        <div class="segmented">
-          <button
-            v-for="item in BODY_TYPES"
-            :key="item.value"
-            :class="{ on: request.bodyType === item.value }"
-            @click="request.bodyType = item.value"
-          >
-            {{ item.label }}
-          </button>
-        </div>
+        <KeyValueEditor
+          v-if="request.bodyType === 'form'"
+          :rows="request.form"
+          key-placeholder="字段名"
+          value-placeholder="字段值"
+        />
 
         <textarea
-          v-if="request.bodyType !== 'none'"
+          v-else-if="request.bodyType !== 'none'"
           v-model="request.body"
           class="body-input"
           :placeholder="bodyPlaceholder"
           spellcheck="false"
         />
+
         <p v-else class="empty">这个请求没有请求体</p>
       </template>
     </div>
@@ -119,46 +162,13 @@ const bodyPlaceholder = computed(() =>
   flex: 0 0 auto;
 }
 
-.method-wrap {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.method {
-  width: 100px;
-  height: 34px;
-  padding: 0 24px 0 10px;
-  appearance: none;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: #f6f6f4;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.method:hover {
-  border-color: var(--border-strong);
-}
-
-.chevron {
-  position: absolute;
-  top: 12px;
-  right: 8px;
-  color: var(--text-3);
-  pointer-events: none;
-}
-
-/* 方法名的配色见 styles.css 里的 .m-* （侧边栏也要用，所以放全局） */
-
 .url {
   flex: 1;
   height: 34px;
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  background: #fbfbfa;
+  background: var(--field);
   font-family: var(--mono);
   font-size: 12.5px;
   transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
@@ -167,7 +177,7 @@ const bodyPlaceholder = computed(() =>
 .url:focus {
   border-color: var(--accent);
   background: var(--surface);
-  box-shadow: 0 0 0 3px rgb(59 91 219 / 10%);
+  box-shadow: 0 0 0 3px rgb(59 91 219 / 12%);
 }
 
 .send {
@@ -176,10 +186,10 @@ const bodyPlaceholder = computed(() =>
   padding: 0 20px;
   border-radius: 7px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.12s;
+  transition: background 0.12s, opacity 0.12s;
 }
 
 .send:hover:not(:disabled) {
@@ -194,59 +204,85 @@ const bodyPlaceholder = computed(() =>
 .tabs {
   display: flex;
   align-items: center;
-  gap: 18px;
-  height: 38px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
   padding: 0 18px;
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
 }
 
+.tab-group {
+  display: flex;
+  gap: 2px;
+}
+
 .tab {
-  position: relative;
-  height: 100%;
+  display: flex;
+  align-items: center;
+  height: 27px;
+  padding: 0 11px;
+  border-radius: 6px;
   color: var(--text-2);
   font-size: 12.5px;
-  transition: color 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
 
 .tab:hover {
+  background: var(--hover);
   color: var(--text);
 }
 
 .tab.on {
-  color: var(--text);
-}
-
-.tab.on::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .count {
   margin-left: 5px;
   color: var(--text-3);
   font-size: 11px;
+  font-weight: 400;
 }
 
 .dot {
-  display: inline-block;
   width: 4px;
   height: 4px;
   margin-left: 5px;
   border-radius: 50%;
   background: var(--accent);
-  vertical-align: middle;
 }
 
-.hint {
-  margin-left: auto;
+.body-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.text-btn {
   color: var(--text-3);
+  font-size: 12px;
+  transition: color 0.12s;
+}
+
+.text-btn:hover {
+  color: var(--text);
+}
+
+.text-btn.on {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.divider {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+}
+
+.format-error {
+  color: var(--red);
   font-size: 11.5px;
 }
 
@@ -259,36 +295,13 @@ const bodyPlaceholder = computed(() =>
   padding: 12px 18px 18px;
 }
 
-.segmented {
-  display: flex;
-  align-self: flex-start;
-  padding: 2px;
-  border-radius: 7px;
-  background: #f4f4f1;
-}
-
-.segmented button {
-  padding: 3px 12px;
-  border-radius: 5px;
-  color: var(--text-2);
-  font-size: 12px;
-  transition: background 0.12s, color 0.12s;
-}
-
-.segmented button.on {
-  color: var(--text);
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
-}
-
 .body-input {
   flex: 1;
   min-height: 120px;
-  margin-top: 10px;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #fbfbfa;
+  background: var(--field);
   font-family: var(--mono);
   font-size: 12.5px;
   line-height: 1.7;
