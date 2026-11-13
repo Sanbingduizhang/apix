@@ -1,0 +1,18 @@
+[package]
+name = "apix"
+version = "0.1.0"
+description = "轻量的 HTTP 接口调试工具"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+# 用 rustls 而不是系统 openssl，跨平台编译时少踩坑
+reqwest = { version = "0.12", default-features = false, features = [
+  "rustls-tls",
+  "gzip",
+  "brotli",
+] }
