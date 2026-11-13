@@ -13,3 +13,6 @@ src-tauri/gen/schemas/
 .vscode/
 .idea/
 *.log
+
+# 项目内的助手记录，不入库
+.workbuddy/
