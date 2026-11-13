@@ -1,39 +1,106 @@
 /**
  * 全局样式与设计变量
  *
- * 整体思路：纸白背景 + 墨黑文字 + 只用一个靛蓝强调色。
- * 所有颜色、圆角、字体都集中在这里定义，组件里不再写死色值，
- * 以后想换主题，改这一个文件就够了。
+ * 两套主题都靠同一批 CSS 变量切换（html 上的 data-theme 属性），
+ * 组件里一律用变量，不写死色值，这样深色模式才能整体生效。
  */
 
 :root {
-  /* 背景与边框 */
+  color-scheme: light;
+
+  /* 背景层次：从外到内 */
   --bg: #fafaf9;
   --surface: #ffffff;
   --sidebar-bg: #f7f7f5;
+  --hover: #efefec;
+  --field: #fbfbfa;
+  --field-solid: #f6f6f4;
+  --pill: #f4f4f1;
+
+  /* 边框 */
   --border: #eae9e5;
   --border-strong: #dedcd6;
 
-  /* 文字：三级层次，够用就好 */
+  /* 文字三级 */
   --text: #1b1b19;
   --text-2: #6b6b64;
   --text-3: #a4a39b;
 
-  /* 强调色（只有一个） */
+  /* 强调色，全局只有一个 */
   --accent: #3b5bdb;
   --accent-hover: #3350c4;
   --accent-soft: #eef1fd;
+  /* 强调色底上的文字颜色（深色主题底色浅，得用深字） */
+  --accent-contrast: #ffffff;
 
-  /* 语义色，只用在状态码这类地方 */
+  /* 语义色 */
   --green: #0f8a5f;
   --amber: #b0670a;
   --red: #d64545;
+  --purple: #7048b6;
+
+  /* 语义色的浅底，用于状态标签 */
+  --green-soft: #eaf6f0;
+  --amber-soft: #fbf2e3;
+  --red-soft: #fcecec;
+  --neutral-soft: #f1f1ee;
+
+  /* JSON 语法配色 */
+  --code-key: #43506c;
+  --code-punc: #b3b2ab;
+
+  /* 阴影与遮罩 */
+  --shadow-card: 0 1px 2px rgb(28 28 26 / 5%);
+  --shadow-pop: 0 8px 24px rgb(28 28 26 / 8%);
+  --overlay: rgb(28 28 26 / 32%);
 
   --radius: 8px;
   --radius-lg: 10px;
 
   --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
   --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+/* 深色主题：同样的变量换一套值，组件不用改一行 */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f0f10;
+  --surface: #171719;
+  --sidebar-bg: #131315;
+  --hover: #202023;
+  --field: #1b1b1e;
+  --field-solid: #1f1f22;
+  --pill: #242427;
+
+  --border: #262629;
+  --border-strong: #343438;
+
+  --text: #ececea;
+  --text-2: #9b9b97;
+  --text-3: #6a6a67;
+
+  --accent: #7b8ff5;
+  --accent-hover: #8e9ff8;
+  --accent-soft: #1e2439;
+  --accent-contrast: #101116;
+
+  --green: #4ec98b;
+  --amber: #dfa55c;
+  --red: #f0736f;
+  --purple: #b18cf0;
+
+  --green-soft: #142a20;
+  --amber-soft: #2a2114;
+  --red-soft: #2c1818;
+  --neutral-soft: #232326;
+
+  --code-key: #a9b6d8;
+  --code-punc: #5d5d5a;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 45%);
+  --overlay: rgb(0 0 0 / 55%);
 }
 
 * {
@@ -65,6 +132,11 @@ button {
   color: inherit;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-3);
+}
+
 button {
   padding: 0;
   border: none;
@@ -73,10 +145,10 @@ button {
 }
 
 ::selection {
-  background: #dbe2fb;
+  background: rgb(59 91 219 / 22%);
 }
 
-/* 滚动条做细一点，别抢视觉 */
+/* 滚动条细一点，别抢视觉 */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -85,26 +157,25 @@ button {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #dedcd6;
+  background: var(--border-strong);
   border: 3px solid transparent;
   border-radius: 6px;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #c8c6bf;
+  background: var(--text-3);
   border: 3px solid transparent;
   border-radius: 6px;
   background-clip: content-box;
 }
 
-/* 输入框统一的聚焦样式，组件里不用重复写 */
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
 }
 
-/* 请求方法的配色，侧边栏和编辑区共用（所以放在全局） */
+/* 请求方法的配色，侧边栏和编辑区共用 */
 .m-GET {
   color: var(--green);
 }
@@ -115,7 +186,7 @@ select:focus {
   color: var(--accent);
 }
 .m-PATCH {
-  color: #7048b6;
+  color: var(--purple);
 }
 .m-DELETE {
   color: var(--red);

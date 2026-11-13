@@ -10,13 +10,13 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
-import type { HeaderRow } from '../types'
+import type { KeyValueRow } from '../types'
 
 /** 发给后端的请求描述 */
 export interface SendPayload {
   method: string
   url: string
-  headers: HeaderRow[]
+  headers: KeyValueRow[]
   body: string | null
 }
 
