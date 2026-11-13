@@ -73,6 +73,10 @@ CSS 里覆盖顺序有讲究，权重相同时靠后的生效：
 - 浏览器和 Node 的 fetch 都拒绝 GET/HEAD 带请求体，发送前要主动丢掉
 - 路径变量只认 `/` 后面的冒号（`/:id`、`/{id}`），否则 `http://host:8080` 的端口会被当成变量
 - multipart 的 `Content-Type` 必须由发送方生成（要带 boundary），用户手写的要跳过
+- **macOS 必须保留 `bundle.macOS.signingIdentity: "-"`**。少了它，bundle 里没有
+  `_CodeSignature`，`codesign --verify` 会报 "code has no resources but signature
+  indicates they must be present"，用户下载后看到的是「已损坏，应移到废纸篓」；
+  有 ad-hoc 签名才会降级成「无法验证开发者」，还能右键放行
 
 ## 不要做
 

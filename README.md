@@ -174,12 +174,26 @@ git push origin v1.1.0
 
 ### 安装包没签名
 
-Apple 证书一年 99 美元、Windows 证书更贵，这个项目没买，所以首次打开会被系统拦：
+Apple 证书一年 99 美元、Windows 证书更贵，这个项目没买。macOS 侧做的是 **ad-hoc 签名**
+（`bundle.macOS.signingIdentity: "-"`）——不证明开发者身份，但能保证代码完整、没被篡改。
 
-- **macOS**：右键点 app → 打开 → 再点「打开」；或终端 `xattr -cr /Applications/apix.app`
-- **Windows**：SmartScreen 蓝色窗口点「更多信息」→「仍要运行」
+这件事很关键：**没有 ad-hoc 签名，系统会说“已损坏，应移到废纸篓”**（签名无效被当成文件损坏）；
+有了它，提示会变成“无法验证开发者”，并允许你手动放行。
 
-介意的话可以自己从源码编译，就一条 `pnpm tauri build`。
+**macOS 首次打开**
+
+1. 在访达里**右键**（或按住 Control 点）`apix.app` → 选「打开」→ 弹窗里再点一次「打开」
+2. 如果没看到「打开」按钮：系统设置 → 隐私与安全性 → 拉到底 → 点「仍要打开」
+3. 还不行就清掉隔离属性（最干脆）：
+
+   ```bash
+   xattr -cr /Applications/apix.app
+   ```
+
+**Windows 首次打开**：SmartScreen 蓝色窗口点「更多信息」→「仍要运行」。
+
+想彻底免掉这一步只有一条路：买 Developer ID（99 美元/年）并做公证（notarization），
+那样用户双击就能开。介意的话可以自己从源码编译：`pnpm tauri build`，本机产物不带隔离属性。
 
 ## 快捷键
 
