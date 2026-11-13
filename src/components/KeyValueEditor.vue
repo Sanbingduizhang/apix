@@ -293,7 +293,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 }
 
 .row:hover {
-  background: var(--field);
+  background: var(--hover);
 }
 
 .head {
@@ -313,23 +313,23 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
   cursor: pointer;
 }
 
+/* 输入框常驻淡底 + 细边框：不悬停也能一眼看出哪里能填 */
 .cell {
   width: 100%;
   height: 30px;
   padding: 0 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: transparent;
+  background: var(--surface-solid);
   transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
 }
 
 .cell:hover {
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .cell:focus {
   border-color: var(--accent);
-  background: var(--surface-solid);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 

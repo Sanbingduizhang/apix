@@ -80,20 +80,19 @@ defineProps<{ request: ApiRequest }>()
   width: 100%;
   height: 30px;
   padding: 0 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: transparent;
+  background: var(--surface-solid);
   font-size: var(--font-sm);
   transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
 }
 
 .input:hover {
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .input:focus {
   border-color: var(--accent);
-  background: var(--surface-solid);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 

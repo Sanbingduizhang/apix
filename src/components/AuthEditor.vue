@@ -175,14 +175,13 @@ const preview = computed(() => {
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--field);
+  background: var(--surface-solid);
   font-size: var(--font-sm);
   transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
 }
 
 .input:focus {
   border-color: var(--accent);
-  background: var(--surface-solid);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
