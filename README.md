@@ -18,6 +18,7 @@
 - [功能](#功能)
 - [截图](#截图)
 - [快速开始](#快速开始)
+- [开发与发布](#开发与发布)
 - [快捷键](#快捷键)
 - [技术实现](#技术实现)
 - [目录结构](#目录结构)
@@ -101,6 +102,61 @@ pnpm tauri build  # 打包，产物在 src-tauri/target/release/bundle
 所以开发时 `vite.config.ts` 里挂了一个本地代理 `/__proxy`：前端把「要发的请求」交给 dev server 的 Node 进程去发，再把结果原样返回。
 
 **这只是开发期的权宜之计**。装成桌面端后，请求由 Rust 侧发出，不受任何浏览器限制。
+
+## 开发与发布
+
+### 分支
+
+| 分支 | 用途 | 推上去会怎样 |
+|---|---|---|
+| `main` | 发布分支，只接受 `develop` 的合并 | Actions 自动打 macOS + Windows 两个包 |
+| `develop` | 日常开发，随便提 | 同样自动编译，用来确认提交能不能过 |
+
+```bash
+# 日常
+git switch develop
+git commit -am "feat: xxx"
+git push                 # CI 跑一遍，能编译就绿
+
+# 攒够了要发版
+git switch main
+git merge --no-ff develop -m "chore: 发布 v1.0.1"
+git push                 # 自动出包
+```
+
+### 两套工作流
+
+- **`build.yml`**：push 到 `main` / `develop`、或向它们提 PR 时触发。
+  先跑类型检查和前端构建（ubuntu，几十秒），过了再并行打 macOS arm64 与 Windows x64。
+  产物在本次运行的 **Artifacts** 里，保留 14 天。
+- **`release.yml`**：推 `v*` 标签时触发。打完直接建一个 **draft Release** 并把安装包挂上去，
+  你检查完点 Publish 即可。
+
+所以不需要在本地打包：**要最新的能跑版本看 Artifacts，要正式下载页就打标签。**
+
+### 发一个正式版
+
+```bash
+# 1. 版本号三处改成一致
+#    package.json / src-tauri/tauri.conf.json / src-tauri/Cargo.toml
+# 2. 提交推送
+git switch main && git push
+# 3. 打标签推送，CI 自动打包并建 Release
+git tag -a v1.0.1 -m "apix v1.0.1"
+git push origin v1.0.1
+```
+
+标签推上去就不要再改，改了会让已发布的 Release 和代码对不上。
+版本号漏改会导致安装包文件名和标签对不起来，发布前扫一眼。
+
+### 安装包没签名
+
+Apple 证书一年 99 美元、Windows 证书更贵，这个项目没买，所以首次打开会被系统拦：
+
+- **macOS**：右键点 app → 打开 → 再点「打开」；或终端 `xattr -cr /Applications/apix.app`
+- **Windows**：SmartScreen 蓝色窗口点「更多信息」→「仍要运行」
+
+介意的话可以自己从源码编译，就一条 `pnpm tauri build`。
 
 ## 快捷键
 

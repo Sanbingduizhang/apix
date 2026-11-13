@@ -1,0 +1,86 @@
+name: Build
+
+# develop 随便提，main 合并后自动出包，都不需要 tag。
+# 产物在本次 Actions 运行页底部的 Artifacts 里，保留 14 天。
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# 同一个分支连续推送时，取消上一次还没跑完的，省时间也省额度
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 先跑一个最轻的：只装前端依赖 + 类型检查 + 构建，几十秒出结果。
+  # 它挂了就不用浪费两个平台的打包时间。
+  check:
+    name: 类型检查与前端构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  bundle:
+    name: 打包 ${{ matrix.name }}
+    needs: check
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            name: macOS arm64
+            target: aarch64-apple-darwin
+            files: src-tauri/target/*/release/bundle/dmg/*.dmg
+          - platform: windows-latest
+            name: Windows x64
+            target: x86_64-pc-windows-msvc
+            files: |
+              src-tauri/target/*/release/bundle/msi/*.msi
+              src-tauri/target/*/release/bundle/nsis/*.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm tauri build --target ${{ matrix.target }}
+
+      # mac 出 dmg，Windows 出 msi 和 nsis 的 exe，一起传上去
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apix-${{ matrix.target }}-${{ github.sha }}
+          path: ${{ matrix.files }}
+          retention-days: 14
+          if-no-files-found: error
