@@ -264,12 +264,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- 背景装饰：一团柔光 + 两道缓慢转动的弧线，纯 CSS 画的，不占 DOM 逻辑 -->
+  <!-- 背景装饰：三团柔光 + 三道缓慢转动的弧线，纯 CSS 画的，不占 DOM 逻辑 -->
   <div class="ambient" aria-hidden="true">
     <span class="orb orb-1" />
     <span class="orb orb-2" />
+    <span class="orb orb-3" />
     <span class="arc arc-1" />
     <span class="arc arc-2" />
+    <span class="arc arc-3" />
     <span class="grid" />
   </div>
 

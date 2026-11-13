@@ -1,15 +1,19 @@
 <script setup lang="ts">
 /**
- * 外观菜单：主题（浅色/深色/跟随系统）+ 界面字号
+ * 外观菜单：配色方案 + 明暗主题 + 界面字号
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
+  palette,
+  paletteLabels,
+  setPalette,
   setTheme,
   setUiSize,
   sizeLabels,
   themeLabels,
   themeMode,
   uiSize,
+  type Palette,
   type ThemeMode,
   type UiSize,
 } from '../store/theme'
@@ -25,6 +29,10 @@ function chooseTheme(mode: ThemeMode) {
 
 function chooseSize(size: UiSize) {
   setUiSize(size)
+}
+
+function choosePalette(value: Palette) {
+  setPalette(value)
 }
 
 function onDocumentMousedown(event: MouseEvent) {
@@ -60,7 +68,34 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
 
     <Transition name="pop">
       <div v-if="open" class="panel">
-        <p class="label">主题</p>
+        <p class="label">配色</p>
+        <button
+          v-for="item in paletteLabels"
+          :key="item.value"
+          class="option"
+          :class="{ on: item.value === palette }"
+          :title="item.hint"
+          @click="choosePalette(item.value)"
+        >
+          <span class="opt-main">
+            <span class="swatch" :class="item.value" />
+            {{ item.label }}
+          </span>
+          <svg v-if="item.value === palette" class="tick" width="12" height="12" viewBox="0 0 12 12">
+            <path
+              d="M2.5 6.2l2.4 2.4 4.6-5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+
+        <div class="sep" />
+
+        <p class="label">明暗</p>
         <button
           v-for="item in themeLabels"
           :key="item.value"
@@ -179,6 +214,28 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMoused
 .option.on {
   color: var(--accent);
   font-weight: 500;
+}
+
+/* 配色选项左边的小色卡：直接看到底是什么调子 */
+.opt-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.swatch.nature {
+  background: linear-gradient(135deg, #1f8f86, #9fd3e0);
+}
+
+.swatch.warm {
+  background: linear-gradient(135deg, #7b6cf6, #ffd9bd);
 }
 
 .tick {

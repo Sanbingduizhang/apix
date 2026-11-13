@@ -25,18 +25,140 @@
   --radius-lg: 18px;
   --radius-xl: 24px;
 
-  /* ---- 浅色主题 ---- */
+  /* ---- 浅色主题（默认配色：自然） ---- */
   color-scheme: light;
 
-  /* 底色用暖米白，不铺渐变；层次靠背景里那几团柔光和阴影撑 */
+  /* 底色：雾绿米白，像清晨的纸。层次靠背景里那几团柔光和阴影撑 */
+  --bg: #e9efe6;
+  /* 三团柔光各走一个自然色：嫩绿、鹅黄、天青，都很淡 */
+  --orb-1: #b7dfc2;
+  --orb-2: #fff3d3;
+  --orb-3: #9fd3e0;
+  --arc: rgba(92, 156, 122, 0.16);
+  --dot: rgba(30, 52, 40, 0.055);
+
+  /* 悬浮面板：半透明 + 模糊，靠 backdrop-filter 出玻璃感 */
+  --surface: rgba(252, 254, 250, 0.84);
+  --surface-solid: #fdfefa;
+  --surface-soft: rgba(250, 253, 247, 0.56);
+  --field: rgba(250, 253, 247, 0.72);
+  --hover: rgba(30, 52, 40, 0.055);
+  --press: rgba(30, 52, 40, 0.09);
+  --border: rgba(30, 52, 40, 0.1);
+  --border-strong: rgba(30, 52, 40, 0.17);
+  /* 悬浮面板的描边：浅色主题下用淡墨色，深色主题下用白色发丝线 */
+  --border-glass: rgba(30, 52, 40, 0.08);
+
+  /* 新拟物：左下暗、右上亮，制造"凸起"的错觉 */
+  --neu-out: 10px 10px 24px rgba(150, 170, 155, 0.4), -10px -10px 24px rgba(255, 255, 255, 0.95);
+  --neu-out-sm: 5px 5px 12px rgba(150, 170, 155, 0.34), -5px -5px 12px rgba(255, 255, 255, 0.9);
+  --neu-in: inset 3px 3px 8px rgba(150, 170, 155, 0.42), inset -3px -3px 8px rgba(255, 255, 255, 0.92);
+
+  --text: #22302a;
+  --text-2: #5f6f66;
+  --text-3: #97a49b;
+
+  /* 主色：青绿，配雾绿底不打架；辅色往嫩绿偏，渐变出来很"植物" */
+  --accent: #1f8f86;
+  --accent-2: #6fbf8f;
+  --accent-soft: rgba(31, 143, 134, 0.13);
+  --accent-contrast: #ffffff;
+
+  --green: #3f9d6f;
+  --amber: #c08430;
+  --red: #d4625c;
+  --purple: #7d6bd6;
+
+  --green-soft: rgba(63, 157, 111, 0.13);
+  --amber-soft: rgba(192, 132, 48, 0.14);
+  --red-soft: rgba(212, 98, 92, 0.13);
+  --neutral-soft: rgba(30, 52, 40, 0.06);
+
+  --code-key: #2f6b63;
+  --code-punc: #a8b3aa;
+
+  /* 阴影分三层：贴地的 1、悬浮的 2、弹窗的 3。带一点墨绿，不用纯黑 */
+  --shadow-1: 0 1px 2px rgba(30, 52, 40, 0.06), 0 1px 1px rgba(30, 52, 40, 0.04);
+  --shadow-2: 0 12px 32px -14px rgba(30, 52, 40, 0.26), 0 2px 8px -4px rgba(30, 52, 40, 0.08);
+  --shadow-3: 0 34px 72px -30px rgba(30, 52, 40, 0.34), 0 10px 26px -12px rgba(30, 52, 40, 0.14);
+  --shadow-btn: 0 10px 24px -10px rgba(31, 143, 134, 0.55);
+  --inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --inset-field: inset 0 1px 2px rgba(30, 52, 40, 0.05);
+
+  --blur: blur(24px) saturate(150%);
+
+  --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+/* ---- 深色（自然配色）：同一批变量换一套值，用深墨绿不用冷黑 ---- */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #131a17;
+  --orb-1: #1d4436;
+  --orb-2: #33301c;
+  --orb-3: #14414a;
+  --arc: rgba(150, 220, 190, 0.1);
+  --dot: rgba(255, 255, 255, 0.045);
+
+  --surface: rgba(32, 42, 36, 0.78);
+  --surface-solid: #1e2822;
+  --surface-soft: rgba(255, 255, 255, 0.045);
+  --field: rgba(255, 255, 255, 0.05);
+  --hover: rgba(255, 255, 255, 0.065);
+  --press: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-glass: rgba(255, 255, 255, 0.1);
+
+  /* 深色下的新拟物：暗面几乎是黑的，亮面只留一点点，太亮就脏了 */
+  --neu-out: 9px 9px 22px rgba(0, 0, 0, 0.58), -9px -9px 22px rgba(200, 255, 226, 0.035);
+  --neu-out-sm: 4px 4px 10px rgba(0, 0, 0, 0.5), -4px -4px 10px rgba(200, 255, 226, 0.03);
+  --neu-in: inset 3px 3px 7px rgba(0, 0, 0, 0.55), inset -3px -3px 7px rgba(200, 255, 226, 0.04);
+
+  --text: #eef3ee;
+  --text-2: #a9b6ad;
+  --text-3: #74827a;
+
+  --accent: #5ecfb4;
+  --accent-2: #9be08a;
+  --accent-soft: rgba(94, 207, 180, 0.18);
+  --accent-contrast: #0b1a15;
+
+  --green: #5cc98f;
+  --amber: #e0b070;
+  --red: #f0837c;
+  --purple: #b0a0f0;
+
+  --green-soft: rgba(92, 201, 143, 0.14);
+  --amber-soft: rgba(224, 176, 112, 0.15);
+  --red-soft: rgba(240, 131, 124, 0.15);
+  --neutral-soft: rgba(255, 255, 255, 0.07);
+
+  --code-key: #8fd0c2;
+  --code-punc: #6a7a70;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 12px 34px -14px rgba(0, 0, 0, 0.75), 0 2px 10px -4px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 36px 80px -30px rgba(0, 0, 0, 0.85), 0 12px 30px -14px rgba(0, 0, 0, 0.55);
+  --shadow-btn: 0 10px 24px -10px rgba(94, 207, 180, 0.45);
+  --inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --inset-field: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- 配色方案：暖阳 ----
+ * 只覆盖颜色，明暗仍然由 data-theme 决定，所以要写两份。
+ * 顺序很重要：浅色块在前、深色块在后，深色才能盖住浅色。
+ */
+[data-palette='warm'] {
   --bg: #f4ede5;
-  /* 柔光统一在暖色系里（杏 + 奶油），三个颜色各显一个就成了彩虹渐变，反而脏 */
   --orb-1: #ffd9bd;
   --orb-2: #fff6ea;
+  --orb-3: #ffd2d9;
   --arc: rgba(214, 141, 105, 0.18);
   --dot: rgba(72, 52, 38, 0.055);
 
-  /* 悬浮面板：半透明 + 模糊，靠 backdrop-filter 出玻璃感 */
   --surface: rgba(255, 252, 248, 0.84);
   --surface-solid: #fffdfa;
   --surface-soft: rgba(255, 251, 245, 0.56);
@@ -45,10 +167,8 @@
   --press: rgba(72, 52, 38, 0.09);
   --border: rgba(72, 52, 38, 0.09);
   --border-strong: rgba(72, 52, 38, 0.17);
-  /* 悬浮面板的描边：浅色主题下用淡墨色，深色主题下用白色发丝线 */
   --border-glass: rgba(72, 52, 38, 0.075);
 
-  /* 新拟物：左下暗、右上亮，制造"凸起"的错觉 */
   --neu-out: 10px 10px 24px rgba(186, 161, 138, 0.38), -10px -10px 24px rgba(255, 255, 255, 0.95);
   --neu-out-sm: 5px 5px 12px rgba(186, 161, 138, 0.32), -5px -5px 12px rgba(255, 255, 255, 0.9);
   --neu-in: inset 3px 3px 8px rgba(186, 161, 138, 0.4), inset -3px -3px 8px rgba(255, 255, 255, 0.92);
@@ -57,46 +177,29 @@
   --text-2: #6d645b;
   --text-3: #a3978a;
 
-  /* 主色用了偏冷的柔紫，放在暖底上正好当对比，不发闷 */
   --accent: #7b6cf6;
   --accent-2: #c76bd9;
   --accent-soft: rgba(123, 108, 246, 0.12);
   --accent-contrast: #ffffff;
 
-  --green: #3f9d6f;
-  --amber: #c08430;
-  --red: #d4625c;
   --purple: #8b5cd6;
-
-  --green-soft: rgba(63, 157, 111, 0.13);
-  --amber-soft: rgba(192, 132, 48, 0.14);
-  --red-soft: rgba(212, 98, 92, 0.13);
   --neutral-soft: rgba(72, 52, 38, 0.06);
 
   --code-key: #6d5a9b;
   --code-punc: #b5a99b;
 
-  /* 阴影分三层：贴地的 1、悬浮的 2、弹窗的 3。统一带一点暖棕，不用纯黑 */
   --shadow-1: 0 1px 2px rgba(72, 52, 38, 0.06), 0 1px 1px rgba(72, 52, 38, 0.04);
   --shadow-2: 0 12px 32px -14px rgba(72, 52, 38, 0.26), 0 2px 8px -4px rgba(72, 52, 38, 0.08);
   --shadow-3: 0 34px 72px -30px rgba(72, 52, 38, 0.34), 0 10px 26px -12px rgba(72, 52, 38, 0.14);
   --shadow-btn: 0 10px 24px -10px rgba(123, 108, 246, 0.6);
-  --inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   --inset-field: inset 0 1px 2px rgba(72, 52, 38, 0.05);
-
-  --blur: blur(24px) saturate(150%);
-
-  --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
-  --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
 
-/* ---- 深色主题：同一批变量换一套值（同样偏暖，不用冷黑） ---- */
-[data-theme='dark'] {
-  color-scheme: dark;
-
+[data-palette='warm'][data-theme='dark'] {
   --bg: #1b1815;
   --orb-1: #4d2f1f;
   --orb-2: #3b2a33;
+  --orb-3: #4a2230;
   --arc: rgba(255, 195, 155, 0.12);
   --dot: rgba(255, 255, 255, 0.045);
 
@@ -110,7 +213,6 @@
   --border-strong: rgba(255, 255, 255, 0.16);
   --border-glass: rgba(255, 255, 255, 0.1);
 
-  /* 深色下的新拟物：暗面几乎是黑的，亮面只留一点点暖调，太亮就脏了 */
   --neu-out: 9px 9px 22px rgba(0, 0, 0, 0.58), -9px -9px 22px rgba(255, 226, 200, 0.035);
   --neu-out-sm: 4px 4px 10px rgba(0, 0, 0, 0.5), -4px -4px 10px rgba(255, 226, 200, 0.03);
   --neu-in: inset 3px 3px 7px rgba(0, 0, 0, 0.55), inset -3px -3px 7px rgba(255, 226, 200, 0.04);
@@ -124,14 +226,7 @@
   --accent-soft: rgba(157, 141, 255, 0.18);
   --accent-contrast: #1a1420;
 
-  --green: #5cc98f;
-  --amber: #e0a865;
-  --red: #f07b74;
   --purple: #b492f0;
-
-  --green-soft: rgba(92, 201, 143, 0.14);
-  --amber-soft: rgba(224, 168, 101, 0.15);
-  --red-soft: rgba(240, 123, 116, 0.15);
   --neutral-soft: rgba(255, 255, 255, 0.07);
 
   --code-key: #b6a8dd;
@@ -141,7 +236,6 @@
   --shadow-2: 0 12px 34px -14px rgba(0, 0, 0, 0.75), 0 2px 10px -4px rgba(0, 0, 0, 0.45);
   --shadow-3: 0 36px 80px -30px rgba(0, 0, 0, 0.85), 0 12px 30px -14px rgba(0, 0, 0, 0.55);
   --shadow-btn: 0 10px 24px -10px rgba(157, 141, 255, 0.45);
-  --inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --inset-field: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -230,7 +324,20 @@ body {
   animation-duration: 43s;
 }
 
-/* 两道细弧线，缓慢转圈：背景里唯一的"动"，很轻，不会抢内容 */
+/* 第三团在右下角，小一点、慢一点，让背景四个角都有东西 */
+.ambient .orb-3 {
+  width: 460px;
+  height: 460px;
+  bottom: -260px;
+  right: -160px;
+  background: var(--orb-3);
+  opacity: 0.38;
+  animation-name: drift-a;
+  animation-duration: 52s;
+  animation-direction: reverse;
+}
+
+/* 三道细弧线，缓慢转圈：背景里唯一的"动"，很轻，不会抢内容 */
 .ambient .arc {
   position: absolute;
   border: 1px solid var(--arc);
@@ -255,6 +362,16 @@ body {
   border-style: dashed;
   animation-duration: 88s;
   animation-direction: reverse;
+}
+
+.ambient .arc-3 {
+  width: 260px;
+  height: 260px;
+  bottom: 18%;
+  right: 12%;
+  border-top-color: transparent;
+  animation-duration: 46s;
+  opacity: 0.7;
 }
 
 @keyframes spin {
@@ -323,7 +440,7 @@ button {
 }
 
 ::selection {
-  background: rgba(79, 107, 255, 0.25);
+  background: var(--accent-soft);
 }
 
 ::-webkit-scrollbar {
