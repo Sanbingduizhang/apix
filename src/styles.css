@@ -388,3 +388,52 @@ select:focus {
 .tok-punc {
   color: var(--code-punc);
 }
+
+/* ---- 下划线式页签，调试区和设计区共用 ----
+ * 注意不要给容器加 overflow: auto：下划线的伪元素伸出容器 1px，
+ * 会被当成可滚动内容，页签底下就多出一条细滚动条。
+ */
+.line-tabs {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+
+.line-tab {
+  position: relative;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  transition: color 0.14s, background 0.14s;
+}
+
+.line-tab:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.line-tab.on {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.line-tab.on::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.line-tab .count {
+  margin-left: 5px;
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  font-weight: 400;
+}

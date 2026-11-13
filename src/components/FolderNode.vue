@@ -117,11 +117,8 @@ function onContextMenu(event: MouseEvent) {
       <span v-if="count" class="count">{{ count }}</span>
     </div>
 
-    <div
-      v-if="open"
-      class="children"
-      :style="{ '--guide': `${6 + depth * 16 + 15}px` }"
-    >
+    <!-- 子级左侧一条虚线：位置取在子级内容左边 10px，视觉上从目录图标下方垂下来 -->
+    <div v-if="open" class="children" :style="{ '--guide': `${14 + depth * 16}px` }">
       <FolderNode v-for="item in childFolders" :key="item.id" :folder="item" :depth="depth + 1" />
       <RequestItem v-for="item in childRequests" :key="item.id" :request="item" :depth="depth + 1" />
     </div>
@@ -177,8 +174,8 @@ function onContextMenu(event: MouseEvent) {
   top: 0;
   bottom: 6px;
   left: var(--guide);
-  border-left: 1px dashed var(--border-strong);
-  opacity: 0.7;
+  border-left: 1px dashed var(--text-3);
+  opacity: 0.5;
   pointer-events: none;
 }
 

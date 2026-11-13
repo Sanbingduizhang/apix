@@ -67,7 +67,8 @@ function needsReselect(row: FormRow): boolean {
 
 <template>
   <div class="form-editor">
-    <div v-if="rows.length" class="row head">
+    <!-- 表头一直显示：没有行的时候也知道这里能填什么 -->
+    <div class="row head">
       <span />
       <span>字段名</span>
       <span>类型</span>

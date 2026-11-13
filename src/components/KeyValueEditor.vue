@@ -161,7 +161,8 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 
 <template>
   <div class="kv">
-    <div v-if="rows.length" class="row head" :class="{ 'with-desc': withDesc }">
+    <!-- 表头一直显示：没有行的时候也知道这里能填什么 -->
+    <div class="row head" :class="{ 'with-desc': withDesc }">
       <span />
       <span>{{ keyPlaceholder }}</span>
       <span>{{ valuePlaceholder }}</span>

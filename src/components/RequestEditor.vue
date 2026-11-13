@@ -158,11 +158,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <button :class="{ on: mode === 'design' }" @click="mode = 'design'">设计</button>
       </div>
 
-      <div v-if="mode === 'debug'" class="sub">
+      <div v-if="mode === 'debug'" class="line-tabs">
         <button
           v-for="item in SUB_TABS"
           :key="item.value"
-          class="sub-tab"
+          class="line-tab"
           :class="{ on: tab === item.value }"
           @click="tab = item.value"
         >
@@ -178,7 +178,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
     <div class="pane">
       <!-- 设计态 -->
-      <DesignPanel v-if="mode === 'design'" :request="request" />
+      <DesignPanel v-if="mode === 'design'" :request="request" :variables="variables" />
 
       <!-- 调试态 -->
       <template v-else>
@@ -400,53 +400,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   box-shadow: var(--shadow-1);
   color: var(--text);
   font-weight: 500;
-}
-
-/* 子页签做成下划线样式，和上面的分段控件区分开 */
-.sub {
-  display: flex;
-  gap: 2px;
-  min-width: 0;
-  overflow: auto;
-}
-
-.sub-tab {
-  position: relative;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: var(--radius-sm);
-  color: var(--text-3);
-  font-size: var(--font-sm);
-  white-space: nowrap;
-  transition: color 0.14s, background 0.14s;
-}
-
-.sub-tab:hover {
-  color: var(--text);
-  background: var(--hover);
-}
-
-.sub-tab.on {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.sub-tab.on::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-
-.sub-tab .count {
-  margin-left: 5px;
-  color: var(--text-3);
-  font-size: var(--font-xs);
-  font-weight: 400;
 }
 
 .spacer {

@@ -44,10 +44,11 @@ function onContextMenu(event: MouseEvent) {
 </script>
 
 <template>
+  <!-- 缩进规则：根级接口和根目录的图标对齐，目录里的接口和父目录的图标对齐 -->
   <div
     class="item"
     :class="{ on: request.id === store.activeRequestId }"
-    :style="{ paddingLeft: `${depth === 0 ? 24 : 28 + depth * 16}px` }"
+    :style="{ paddingLeft: `${depth === 0 ? 24 : 8 + depth * 16}px` }"
     @click="selectRequest(request.id)"
     @contextmenu.stop="onContextMenu"
   >
