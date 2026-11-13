@@ -1,0 +1,86 @@
+name: Release
+
+# 什么时候跑：推一个 v 开头的标签（比如 v1.0.1），或在 Actions 页面手动指定标签
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的标签，例如 v1.0.0'
+        required: true
+
+# tauri-action 要创建 Release 并上传文件，必须有写权限
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      # 一个平台失败不要取消另一个，否则永远只能拿到一半产物
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon。Intel Mac 需要 x86_64-apple-darwin，加一行即可
+          - platform: macos-latest
+            name: macOS arm64
+            target: aarch64-apple-darwin
+          - platform: windows-latest
+            name: Windows x64
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # 缓存 Rust 依赖，第二次构建能从十几分钟降到两三分钟
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # 严格按 lockfile 装，避免 CI 上悄悄升了某个小版本导致行为不一致
+      - run: pnpm install --frozen-lockfile
+
+      # 打包 + 自动建 Release + 上传产物，一步到位
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: 'apix ${{ github.event.inputs.tag || github.ref_name }}'
+          releaseDraft: true
+          prerelease: false
+          releaseBody: |
+            ### 下载
+
+            | 系统 | 文件 |
+            |---|---|
+            | macOS（Apple Silicon） | `apix_*_aarch64.dmg` |
+            | Windows（64 位） | `apix_*_x64-setup.exe` 或 `apix_*_x64_en-US.msi` |
+
+            ### 首次打开会被系统拦一下
+
+            安装包没有做代码签名（Apple 证书一年 99 美元、Windows 证书更贵），
+            所以系统会提示"来源不明的开发者"。这是正常的，可以这样绕过：
+
+            **macOS**：右键点 app → 打开 → 再点"打开"；
+            或者终端执行 `xattr -cr /Applications/apix.app`
+
+            **Windows**：SmartScreen 蓝色窗口里点"更多信息" → "仍要运行"
+
+            不放心的话可以自己从源码编译，一条命令：`pnpm tauri build`
+          args: --target ${{ matrix.target }}
