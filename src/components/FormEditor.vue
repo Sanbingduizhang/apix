@@ -72,6 +72,7 @@ function needsReselect(row: FormRow): boolean {
       <span>字段名</span>
       <span>类型</span>
       <span>字段值</span>
+      <span>描述</span>
       <span />
     </div>
 
@@ -118,6 +119,8 @@ function needsReselect(row: FormRow): boolean {
         </template>
       </div>
 
+      <input v-model="row.desc" class="cell desc" placeholder="说明（可选）" spellcheck="false" />
+
       <button class="remove" title="删除这一行" @click="removeRow(index)">×</button>
     </div>
 
@@ -136,13 +139,17 @@ function needsReselect(row: FormRow): boolean {
 
 .row {
   display: grid;
-  grid-template-columns: 16px minmax(90px, 1fr) 50px minmax(120px, 1.4fr) 24px;
+  grid-template-columns: 16px minmax(80px, 1fr) 50px minmax(110px, 1.4fr) minmax(100px, 1fr) 24px;
   align-items: center;
   gap: 10px;
   height: var(--h-row);
   padding: 0 4px;
   border-radius: var(--radius-sm);
   transition: background 0.12s;
+}
+
+.desc {
+  font-size: var(--font-sm);
 }
 
 .row:hover {

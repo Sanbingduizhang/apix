@@ -20,12 +20,15 @@ const props = withDefaults(
     variables?: VariableHint[]
     keyPlaceholder?: string
     valuePlaceholder?: string
+    /** 多一列"描述"，接口文档里用得上 */
+    withDesc?: boolean
   }>(),
   {
     suggestions: () => [],
     variables: () => [],
     keyPlaceholder: '键名',
     valuePlaceholder: '值',
+    withDesc: false,
   },
 )
 
@@ -158,14 +161,15 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 
 <template>
   <div class="kv">
-    <div v-if="rows.length" class="row head">
+    <div v-if="rows.length" class="row head" :class="{ 'with-desc': withDesc }">
       <span />
       <span>{{ keyPlaceholder }}</span>
       <span>{{ valuePlaceholder }}</span>
+      <span v-if="withDesc">描述</span>
       <span />
     </div>
 
-    <div v-for="(row, index) in rows" :key="row.id" class="row">
+    <div v-for="(row, index) in rows" :key="row.id" class="row" :class="{ 'with-desc': withDesc }">
       <input v-model="row.enabled" type="checkbox" class="check" />
 
       <input
@@ -185,6 +189,14 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
         @focus="onValueFocus($event, row)"
         @input="onValueInput($event, row)"
         @blur="varQuery = null"
+      />
+
+      <input
+        v-if="withDesc"
+        v-model="row.desc"
+        class="cell desc"
+        placeholder="说明（可选）"
+        spellcheck="false"
       />
 
       <button class="remove" title="删除这一行" @click="removeRow(index)">
@@ -268,6 +280,15 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
   padding: 0 4px;
   border-radius: var(--radius-sm);
   transition: background 0.12s;
+}
+
+/* 多一列描述 */
+.row.with-desc {
+  grid-template-columns: 16px minmax(80px, 1fr) minmax(120px, 1.7fr) minmax(110px, 1.3fr) 24px;
+}
+
+.desc {
+  font-size: var(--font-sm);
 }
 
 .row:hover {

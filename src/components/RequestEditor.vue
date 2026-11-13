@@ -1,35 +1,56 @@
 <script setup lang="ts">
 /**
- * 请求编辑区：方法 + 地址 + 请求头 / 请求体
+ * 请求编辑区
  *
- * 直接修改 props.request 上的字段（它是 store 里的响应式对象），改完自动存盘。
- * 请求头页签下半部分会列出"继承的请求头"：来自全局参数和环境参数，随请求一起发出去。
+ * 两种状态：
+ *   调试 —— 填参数、发请求、看响应（Params / Auth / Headers / Body / Path 五个页签）
+ *   设计 —— 写接口名、说明和字段描述，相当于这份接口的文档
+ *
+ * 编辑的都是草稿（store/draft.ts），点「保存」才落库；切换接口时自动保存一次。
  */
-import { computed, ref } from 'vue'
-import type { ApiRequest, BodyType } from '../types'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { ApiRequest } from '../types'
 import {
   activeBaseUrl,
   availableVariables,
   effectiveHeaders,
   isAbsoluteUrl,
   resolveUrl,
+  syncPathParams,
 } from '../store/workspace'
+import { dirty, saveDraft } from '../store/draft'
+import AuthEditor from './AuthEditor.vue'
+import BodyEditor from './BodyEditor.vue'
+import DesignPanel from './DesignPanel.vue'
 import KeyValueEditor from './KeyValueEditor.vue'
-import FormEditor from './FormEditor.vue'
 import MethodSelect from './MethodSelect.vue'
+import PathEditor from './PathEditor.vue'
 
-const props = defineProps<{
-  request: ApiRequest
-  sending: boolean
-}>()
+const props = defineProps<{ request: ApiRequest; sending: boolean }>()
+const emit = defineEmits<{ send: []; settings: []; resize: [percent: number] }>()
 
-const emit = defineEmits<{ send: []; settings: [] }>()
+/** 顶层：调试 / 设计 */
+const mode = ref<'debug' | 'design'>('debug')
 
-const BODY_TYPES: { value: BodyType; label: string }[] = [
-  { value: 'none', label: '无' },
-  { value: 'json', label: 'JSON' },
-  { value: 'form', label: '表单' },
-  { value: 'text', label: '文本' },
+// 切到设计态时把编辑区拉高一点，不然文档内容全被折叠在可视区外
+watch(mode, (next) => emit('resize', next === 'design' ? 70 : 48))
+
+// 地址里一出现 :id 就同步出对应的路径变量行（不管有没有打开 Path 页签）
+watch(
+  () => props.request.url,
+  () => syncPathParams(props.request),
+  { immediate: true },
+)
+
+type SubTab = 'params' | 'auth' | 'headers' | 'body' | 'path'
+const tab = ref<SubTab>('params')
+
+const SUB_TABS: { value: SubTab; label: string }[] = [
+  { value: 'params', label: 'Params' },
+  { value: 'auth', label: 'Auth' },
+  { value: 'headers', label: 'Headers' },
+  { value: 'body', label: 'Body' },
+  { value: 'path', label: 'Path' },
 ]
 
 /** 常用请求头，点"键名"输入框时作为候选 */
@@ -48,51 +69,51 @@ const HEADER_SUGGESTIONS = [
   'X-Trace-Id',
 ]
 
-const tab = ref<'headers' | 'body'>('headers')
-const formatError = ref('')
-
 /** 这个请求最终会带上的头（含继承），用来算数量和展示 */
 const mergedHeaders = computed(() => effectiveHeaders(props.request))
 const inherited = computed(() => mergedHeaders.value.filter((item) => item.source !== '请求'))
 const variables = computed(() => availableVariables())
 
-const bodyPlaceholder = computed(() =>
-  props.request.bodyType === 'json' ? '{\n  "name": "apix"\n}' : '请求体内容…',
-)
-
-/** 当前环境的请求前缀 */
 const baseUrl = computed(() => activeBaseUrl.value)
-
-/** 地址里已经写了完整地址时，前缀就不显示了（完整地址优先） */
 const showPrefix = computed(() => !isAbsoluteUrl(props.request.url))
-
+const fullUrl = computed(() => resolveUrl(props.request.url))
 const urlPlaceholder = computed(() =>
   showPrefix.value ? '/users/1（只写路径，前缀自动拼上）' : 'https://api.example.com/users/1',
 )
 
-/** 真正会请求的地址，挂在输入框的 title 上，鼠标一停就能看到 */
-const fullUrl = computed(() => resolveUrl(props.request.url))
+/** 页签右边的角标数字 */
+function countOf(item: SubTab): number {
+  const request = props.request
+  if (item === 'params') return request.params.filter((row) => row.enabled && row.key.trim()).length
+  if (item === 'headers') return mergedHeaders.value.length
+  if (item === 'path') return request.pathParams.length
+  if (item === 'body') return request.bodyType === 'none' ? 0 : 1
+  return request.auth.type === 'none' ? 0 : 1
+}
 
-/** 把 JSON 重新缩进排版；格式不对就提示一下，不弹窗打断操作 */
-function beautify() {
-  try {
-    props.request.body = JSON.stringify(JSON.parse(props.request.body), null, 2)
-    formatError.value = ''
-  } catch {
-    formatError.value = 'JSON 格式有误'
-    setTimeout(() => (formatError.value = ''), 2000)
+function save() {
+  saveDraft()
+}
+
+/** ⌘S / Ctrl+S 保存，避免肌肉记忆去按浏览器保存 */
+function onKeydown(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+    event.preventDefault()
+    save()
   }
 }
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
   <section class="editor">
-    <!-- 地址栏：方法 + 请求前缀 + 路径，前缀来自当前环境 -->
+    <!-- 地址栏：方法 + 请求前缀 + 路径 -->
     <div class="bar">
       <MethodSelect :model-value="request.method" @update:model-value="request.method = $event" />
 
       <div class="url-box">
-        <!-- 用 span 而不是 button：button 在 flex 行里会被浏览器摆到容器外，高度也塌陷 -->
         <span
           v-if="showPrefix"
           class="prefix"
@@ -107,7 +128,7 @@ function beautify() {
           @click="emit('settings')"
           @keydown.enter.prevent="emit('settings')"
         >
-          {{ baseUrl || '设置前缀' }}
+          <span class="prefix-text">{{ baseUrl || '设置前缀' }}</span>
         </span>
 
         <input
@@ -121,83 +142,90 @@ function beautify() {
         />
       </div>
 
+      <button class="save" :class="{ dirty }" title="保存（⌘S）" @click="save">
+        {{ dirty ? '保存' : '已保存' }}
+      </button>
+
       <button class="send" :disabled="sending" @click="emit('send')">
         {{ sending ? '发送中' : '发送' }}
       </button>
     </div>
 
-    <!-- 请求头 / 请求体 -->
+    <!-- 调试 / 设计 + 子页签 -->
     <div class="tabs">
-      <div class="tab-group">
-        <button class="tab" :class="{ on: tab === 'headers' }" @click="tab = 'headers'">
-          请求头<span v-if="mergedHeaders.length" class="count">{{ mergedHeaders.length }}</span>
-        </button>
-        <button class="tab" :class="{ on: tab === 'body' }" @click="tab = 'body'">
-          请求体<span v-if="request.bodyType !== 'none'" class="dot" />
-        </button>
+      <div class="mode-switch">
+        <button :class="{ on: mode === 'debug' }" @click="mode = 'debug'">调试</button>
+        <button :class="{ on: mode === 'design' }" @click="mode = 'design'">设计</button>
       </div>
 
-      <div v-if="tab === 'body'" class="body-tools">
-        <span v-if="formatError" class="format-error">{{ formatError }}</span>
+      <div v-if="mode === 'debug'" class="sub">
         <button
-          v-for="item in BODY_TYPES"
+          v-for="item in SUB_TABS"
           :key="item.value"
-          class="text-btn"
-          :class="{ on: request.bodyType === item.value }"
-          @click="request.bodyType = item.value"
+          class="sub-tab"
+          :class="{ on: tab === item.value }"
+          @click="tab = item.value"
         >
           {{ item.label }}
+          <span v-if="countOf(item.value)" class="count">{{ countOf(item.value) }}</span>
         </button>
-
-        <template v-if="request.bodyType === 'json'">
-          <span class="divider" />
-          <button class="text-btn" @click="beautify">格式化</button>
-        </template>
       </div>
+
+      <span class="spacer" />
+
+      <span v-if="dirty" class="dirty">有未保存的修改</span>
     </div>
 
     <div class="pane">
-      <template v-if="tab === 'headers'">
-        <KeyValueEditor
-          :rows="request.headers"
-          :suggestions="HEADER_SUGGESTIONS"
-          :variables="variables"
-          key-placeholder="键名"
-          value-placeholder="值，支持 {{变量}}"
-        />
+      <!-- 设计态 -->
+      <DesignPanel v-if="mode === 'design'" :request="request" />
 
-        <!-- 继承来的请求头：只读，让你清楚这次请求到底带了什么 -->
-        <section class="inherited">
-          <p class="sec-title">
-            继承的请求头
-            <span>来自全局参数 / 环境参数，发送时自动带上</span>
-          </p>
-
-          <div v-if="inherited.length" class="inh-list">
-            <div v-for="item in inherited" :key="item.key" class="inh-row">
-              <span class="inh-key">{{ item.key }}</span>
-              <span class="inh-value">{{ item.value || '（空）' }}</span>
-              <span class="inh-source" :class="item.source === '环境' ? 'env' : 'global'">
-                {{ item.source }}
-              </span>
-            </div>
-          </div>
-          <p v-else class="inh-empty">还没有配置全局或环境参数</p>
-        </section>
-      </template>
-
+      <!-- 调试态 -->
       <template v-else>
-        <FormEditor v-if="request.bodyType === 'form'" :rows="request.form" />
-
-        <textarea
-          v-else-if="request.bodyType !== 'none'"
-          v-model="request.body"
-          class="body-input"
-          :placeholder="bodyPlaceholder"
-          spellcheck="false"
+        <KeyValueEditor
+          v-if="tab === 'params'"
+          :rows="request.params"
+          :variables="variables"
+          with-desc
+          key-placeholder="参数名"
+          value-placeholder="参数值"
         />
 
-        <p v-else class="no-body">这个请求没有请求体</p>
+        <AuthEditor v-else-if="tab === 'auth'" :auth="request.auth" />
+
+        <template v-else-if="tab === 'headers'">
+          <KeyValueEditor
+            :rows="request.headers"
+            :suggestions="HEADER_SUGGESTIONS"
+            :variables="variables"
+            with-desc
+            key-placeholder="键名"
+            value-placeholder="值，支持 {{变量}}"
+          />
+
+          <!-- 继承来的请求头：只读，让你清楚这次请求到底带了什么 -->
+          <section class="inherited">
+            <p class="sec-title">
+              继承的请求头
+              <span>来自全局参数 / 环境参数，发送时自动带上</span>
+            </p>
+
+            <div v-if="inherited.length" class="inh-list">
+              <div v-for="item in inherited" :key="item.key" class="inh-row">
+                <span class="inh-key">{{ item.key }}</span>
+                <span class="inh-value">{{ item.value || '（空）' }}</span>
+                <span class="inh-source" :class="item.source === '环境' ? 'env' : 'global'">
+                  {{ item.source }}
+                </span>
+              </div>
+            </div>
+            <p v-else class="inh-empty">还没有配置全局或环境参数</p>
+          </section>
+        </template>
+
+        <BodyEditor v-else-if="tab === 'body'" :request="request" :variables="variables" />
+
+        <PathEditor v-else :request="request" />
       </template>
     </div>
   </section>
@@ -214,7 +242,7 @@ function beautify() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 14px 18px 10px;
   flex: 0 0 auto;
 }
 
@@ -241,11 +269,10 @@ function beautify() {
 /* 前缀：只读展示，点一下去设置里改 */
 .prefix {
   flex: 0 1 auto;
-  max-width: 320px;
+  max-width: min(320px, 42%);
   display: flex;
   align-items: center;
   margin: 0;
-  /* button/span 作为 flex 子项不一定会被拉伸，这里给个明确高度，否则会被父级 overflow 裁掉 */
   height: calc(var(--h-ctl) - 2px);
   padding: 0 13px;
   border-right: 1px solid var(--border);
@@ -253,8 +280,6 @@ function beautify() {
   color: var(--text-3);
   font-family: var(--mono);
   font-size: var(--font-sm);
-  white-space: nowrap;
-  overflow: hidden;
   cursor: pointer;
   transition: color 0.14s, background 0.14s;
 }
@@ -264,7 +289,13 @@ function beautify() {
   color: var(--accent);
 }
 
-/* 还没配前缀时，用强调色提示"这里可以点" */
+/* 前缀太长就省略，鼠标停上去看完整地址 */
+.prefix-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .prefix.unset {
   color: var(--accent);
   font-family: var(--sans);
@@ -278,6 +309,35 @@ function beautify() {
   background: transparent;
   font-family: var(--mono);
   font-size: var(--font-sm);
+}
+
+.save {
+  flex: 0 0 auto;
+  height: var(--h-ctl);
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--text-3);
+  font-size: var(--font-sm);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.save.dirty {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.save:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.save.dirty:hover {
+  border-color: transparent;
+  color: var(--accent);
 }
 
 .send {
@@ -312,86 +372,90 @@ function beautify() {
 .tabs {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 0 18px 10px;
   flex: 0 0 auto;
 }
 
-.tab-group {
+.mode-switch {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   padding: 3px;
   border-radius: var(--radius);
   background: var(--neutral-soft);
+  flex: 0 0 auto;
 }
 
-.tab {
-  display: flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 13px;
+.mode-switch button {
+  height: 26px;
+  padding: 0 14px;
   border-radius: var(--radius-sm);
   color: var(--text-2);
   font-size: var(--font-sm);
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
-.tab:hover {
-  color: var(--text);
-}
-
-.tab.on {
+.mode-switch button.on {
   background: var(--surface-solid);
   box-shadow: var(--shadow-1);
   color: var(--text);
   font-weight: 500;
 }
 
-.count {
+/* 子页签做成下划线样式，和上面的分段控件区分开 */
+.sub {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  overflow: auto;
+}
+
+.sub-tab {
+  position: relative;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  transition: color 0.14s, background 0.14s;
+}
+
+.sub-tab:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.sub-tab.on {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.sub-tab.on::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.sub-tab .count {
   margin-left: 5px;
   color: var(--text-3);
   font-size: var(--font-xs);
   font-weight: 400;
 }
 
-.dot {
-  width: 5px;
-  height: 5px;
-  margin-left: 5px;
-  border-radius: 50%;
-  background: var(--accent);
+.spacer {
+  flex: 1;
 }
 
-.body-tools {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.text-btn {
-  color: var(--text-3);
-  font-size: var(--font-sm);
-  transition: color 0.14s;
-}
-
-.text-btn:hover {
-  color: var(--text);
-}
-
-.text-btn.on {
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.divider {
-  width: 1px;
-  height: 13px;
-  background: var(--border);
-}
-
-.format-error {
-  color: var(--red);
+.dirty {
+  flex: 0 0 auto;
+  color: var(--amber);
   font-size: var(--font-xs);
 }
 
@@ -407,26 +471,6 @@ function beautify() {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-soft);
-}
-
-.body-input {
-  flex: 1;
-  min-height: 120px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--field);
-  font-family: var(--mono);
-  font-size: var(--font-sm);
-  line-height: 1.75;
-  resize: none;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-}
-
-.body-input:focus {
-  border-color: var(--accent);
-  background: var(--surface-solid);
-  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 /* ---- 继承的请求头 ---- */
@@ -504,13 +548,5 @@ function beautify() {
   margin: 0 4px;
   color: var(--text-3);
   font-size: var(--font-xs);
-}
-
-/* 类名别用 .empty 这种大路货，之前它把地址栏前缀的 margin 顶歪了 */
-.no-body {
-  margin: 26px 0;
-  color: var(--text-3);
-  font-size: var(--font-sm);
-  text-align: center;
 }
 </style>
