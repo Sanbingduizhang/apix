@@ -2,6 +2,7 @@
 name = "apix"
 version = "1.0.0"
 description = "轻量的 HTTP 接口调试工具"
+license = "Apache-2.0"
 edition = "2021"
 
 [build-dependencies]

@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "轻量的 HTTP 接口调试工具，打开即用，本地保存",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
