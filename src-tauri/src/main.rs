@@ -1,12 +1,12 @@
+// 打包后不额外弹一个控制台窗口（只在 Windows 上生效）
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 /**
  * 桌面端入口
  *
  * 前端只负责拼请求参数，真正的网络请求在这里用 reqwest 发出。
  * 好处：不受浏览器 CORS 限制，能自由设置请求头、超时、证书策略。
  */
-
-// 打包后不额外弹一个控制台窗口（只在 Windows 上生效）
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
