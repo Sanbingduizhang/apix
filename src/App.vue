@@ -15,7 +15,8 @@ import ContextMenu from './components/ContextMenu.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import type { ApiRequest } from './types'
 import { activeRequest, resolveVariables } from './store/workspace'
-import { sendHttpRequest, type SendResult } from './api/http'
+import { getFile } from './store/fileCache'
+import { sendHttpRequest, type FormField, type SendResult } from './api/http'
 
 const view = ref<'list' | 'project'>('list')
 const settingsOpen = ref(false)
@@ -33,8 +34,9 @@ watch(
 /**
  * 把界面上的请求整理成可以发出去的形状：
  * 1. 变量替换（{{baseUrl}} 之类）
- * 2. 表单类型序列化成 urlencoded 字符串
+ * 2. 表单类型整理成字段列表（文本 + 文件的 base64）
  * 3. 没手动写 Content-Type 时，按请求体类型自动补一个
+ *    （表单例外：multipart 的 boundary 必须由发送方生成，这里不能写死）
  */
 function buildPayload(request: ApiRequest) {
   const headers = request.headers
@@ -48,6 +50,7 @@ function buildPayload(request: ApiRequest) {
 
   const hasContentType = headers.some((row) => row.key.toLowerCase() === 'content-type')
   let body: string | null = null
+  let formFields: FormField[] | undefined
 
   if (request.bodyType === 'json') {
     body = resolveVariables(request.body)
@@ -57,24 +60,30 @@ function buildPayload(request: ApiRequest) {
   } else if (request.bodyType === 'text') {
     body = resolveVariables(request.body)
   } else if (request.bodyType === 'form') {
-    const params = new URLSearchParams()
+    formFields = []
     for (const row of request.form) {
-      if (row.enabled && row.key.trim()) {
-        params.append(resolveVariables(row.key), resolveVariables(row.value))
+      if (!row.enabled || !row.key.trim()) continue
+      const key = resolveVariables(row.key)
+
+      if (row.type === 'file') {
+        // 文件内容只存在内存里；没选到（比如刷新过页面）就跳过这个字段
+        const cached = getFile(row.id)
+        if (!cached) continue
+        formFields.push({
+          key,
+          type: 'file',
+          value: '',
+          fileName: cached.name,
+          fileType: cached.type,
+          fileBase64: cached.base64,
+        })
+      } else {
+        formFields.push({ key, type: 'text', value: resolveVariables(row.value) })
       }
-    }
-    body = params.toString()
-    if (!hasContentType) {
-      headers.push({
-        id: 'auto',
-        key: 'Content-Type',
-        value: 'application/x-www-form-urlencoded',
-        enabled: true,
-      })
     }
   }
 
-  return { method: request.method, url: resolveVariables(request.url.trim()), headers, body }
+  return { method: request.method, url: resolveVariables(request.url.trim()), headers, body, formFields }
 }
 
 async function handleSend() {

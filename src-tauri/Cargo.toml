@@ -10,9 +10,12 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
-# 用 rustls 而不是系统 openssl，跨平台编译时少踩坑
+# 用 rustls 而不是系统 openssl，跨平台编译时少踩坑；multipart 用来发文件表单
 reqwest = { version = "0.12", default-features = false, features = [
   "rustls-tls",
   "gzip",
   "brotli",
+  "multipart",
 ] }
+# 前端传过来的文件是 base64，这里还原成字节
+base64 = "0.22"

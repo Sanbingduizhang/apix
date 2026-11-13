@@ -16,6 +16,15 @@ export interface KeyValueRow {
 /** 请求体类型 */
 export type BodyType = 'none' | 'json' | 'form' | 'text'
 
+/** 表单里的一行：可能是普通文本，也可能是一个文件 */
+export interface FormRow extends KeyValueRow {
+  type: 'text' | 'file'
+  /** 只记录文件名/大小给界面看，真正的字节放在内存缓存里（见 store/fileCache.ts） */
+  fileName?: string
+  fileSize?: number
+  fileType?: string
+}
+
 /** 接口分组目录 */
 export interface Folder {
   id: string
@@ -41,8 +50,8 @@ export interface ApiRequest {
   bodyType: BodyType
   /** json / text 时是原始文本 */
   body: string
-  /** 表单时的键值对 */
-  form: KeyValueRow[]
+  /** 表单（multipart/form-data）时的键值对，值可以是文件 */
+  form: FormRow[]
   /** 所属目录，null 表示根目录 */
   folderId: string | null
   updatedAt: number

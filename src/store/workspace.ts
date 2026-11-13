@@ -8,7 +8,15 @@
  */
 
 import { computed, reactive, watch } from 'vue'
-import type { ApiRequest, Environment, Folder, KeyValueRow, Project, Workspace } from '../types'
+import type {
+  ApiRequest,
+  Environment,
+  Folder,
+  FormRow,
+  KeyValueRow,
+  Project,
+  Workspace,
+} from '../types'
 
 const STORAGE_KEY = 'apix.workspace.v2'
 /** 旧版本（没有目录和环境）的数据，读到就顺手迁过来 */
@@ -22,9 +30,14 @@ function uid(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-/** 一行空的 key-value（请求头、表单、变量共用） */
+/** 一行空的 key-value（请求头、变量用） */
 export function createKeyValueRow(): KeyValueRow {
   return { id: uid('kv'), key: '', value: '', enabled: true }
+}
+
+/** 一行空表单字段，默认是文本，点了"文件"就变成上传 */
+export function createFormRow(): FormRow {
+  return { id: uid('kv'), key: '', value: '', enabled: true, type: 'text' }
 }
 
 /** 新建一套环境，默认给一行空变量，方便直接编辑 */
@@ -42,7 +55,7 @@ export function createRequest(folderId: string | null = null, name = '未命名�
     headers: [createKeyValueRow()],
     bodyType: 'none',
     body: '',
-    form: [createKeyValueRow()],
+    form: [createFormRow()],
     folderId,
     updatedAt: Date.now(),
   }
@@ -101,8 +114,10 @@ function normalize(data: Workspace): Workspace {
     for (const env of project.environments) env.vars ??= [createKeyValueRow()]
     for (const request of project.requests) {
       request.headers ??= [createKeyValueRow()]
-      request.form ??= [createKeyValueRow()]
+      request.form ??= [createFormRow()]
       request.folderId ??= null
+      // 老版本的表单行没有 type 字段，补成文本
+      for (const row of request.form) row.type ??= 'text'
     }
   }
 

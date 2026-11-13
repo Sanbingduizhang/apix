@@ -8,6 +8,7 @@
 import { computed, ref } from 'vue'
 import type { ApiRequest, BodyType } from '../types'
 import KeyValueEditor from './KeyValueEditor.vue'
+import FormEditor from './FormEditor.vue'
 import MethodSelect from './MethodSelect.vue'
 
 const props = defineProps<{
@@ -124,12 +125,7 @@ function beautify() {
       />
 
       <template v-else>
-        <KeyValueEditor
-          v-if="request.bodyType === 'form'"
-          :rows="request.form"
-          key-placeholder="字段名"
-          value-placeholder="字段值"
-        />
+        <FormEditor v-if="request.bodyType === 'form'" :rows="request.form" />
 
         <textarea
           v-else-if="request.bodyType !== 'none'"

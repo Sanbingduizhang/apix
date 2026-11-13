@@ -12,12 +12,24 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { KeyValueRow } from '../types'
 
+/** 表单里的一个字段：文本，或者一个文件（内容是 base64） */
+export interface FormField {
+  key: string
+  type: 'text' | 'file'
+  value: string
+  fileName?: string
+  fileType?: string
+  fileBase64?: string
+}
+
 /** 发给后端的请求描述 */
 export interface SendPayload {
   method: string
   url: string
   headers: KeyValueRow[]
   body: string | null
+  /** 有值就说明是 multipart/form-data，body 会为空 */
+  formFields?: FormField[]
 }
 
 /** 统一的响应结构，桌面端和浏览器端返回的字段完全一致 */

@@ -36,12 +36,36 @@ function localProxyPlugin(): Plugin {
             if (h.enabled && String(h.key).trim()) headers[String(h.key).trim()] = h.value
           }
 
-          // 3. 真正发请求，并记录耗时
+          // 3. 组装请求体：表单要拼成 FormData，文件从 base64 还原
+          let requestBody: BodyInit | undefined
+          if (Array.isArray(payload.formFields)) {
+            const form = new FormData()
+            for (const field of payload.formFields) {
+              if (field.type === 'file' && field.fileBase64) {
+                const bytes = Buffer.from(field.fileBase64, 'base64')
+                const blob = new Blob([bytes], {
+                  type: field.fileType || 'application/octet-stream',
+                })
+                form.append(field.key, blob, field.fileName || 'file')
+              } else if (field.type === 'text') {
+                form.append(field.key, field.value ?? '')
+              }
+            }
+            requestBody = form
+            // multipart 的 boundary 必须由 fetch 自己生成，手写 Content-Type 会让它失效
+            for (const key of Object.keys(headers)) {
+              if (key.toLowerCase() === 'content-type') delete headers[key]
+            }
+          } else if (payload.body) {
+            requestBody = payload.body
+          }
+
+          // 4. 真正发请求，并记录耗时
           const started = Date.now()
           const response = await fetch(payload.url, {
             method: payload.method,
             headers,
-            body: payload.body || undefined,
+            body: requestBody,
           })
           const body = await response.text()
 

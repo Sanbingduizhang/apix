@@ -8,6 +8,7 @@
  * 好处：不受浏览器 CORS 限制，能自由设置请求头、超时、证书策略。
  */
 
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
@@ -20,6 +21,8 @@ struct RequestPayload {
     headers: Vec<HeaderRow>,
     /// 没有请求体时是 None
     body: Option<String>,
+    /// 有值就说明是 multipart/form-data
+    form_fields: Option<Vec<FormField>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -27,6 +30,21 @@ struct HeaderRow {
     key: String,
     value: String,
     enabled: bool,
+}
+
+/// 表单里的一个字段：文本，或者一个文件（内容为 base64）
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FormField {
+    key: String,
+    /// "text" 或 "file"
+    #[serde(rename = "type")]
+    field_type: String,
+    #[serde(default)]
+    value: String,
+    file_name: Option<String>,
+    file_type: Option<String>,
+    file_base64: Option<String>,
 }
 
 /// 返回给前端的结果，结构要和前端 api/http.ts 里的 SendResult 对齐
@@ -54,14 +72,52 @@ async fn send_request(payload: RequestPayload) -> Result<ResponsePayload, String
 
     let mut request = client.request(method, &payload.url);
 
+    // 有表单字段就走 multipart：文件从 base64 还原，
+    // boundary 和 Content-Type 交给 reqwest 自己生成（手写反而会出错）
+    let is_multipart = payload.form_fields.is_some();
+
     // 只带上被勾选、且键名不为空的请求头
     for header in &payload.headers {
-        if header.enabled && !header.key.trim().is_empty() {
-            request = request.header(header.key.trim(), header.value.as_str());
+        if !header.enabled || header.key.trim().is_empty() {
+            continue;
         }
+        // multipart 的 Content-Type 必须由 reqwest 生成（要带 boundary），
+        // 这里跳过用户手写的，避免出现两个 Content-Type
+        if is_multipart && header.key.trim().eq_ignore_ascii_case("content-type") {
+            continue;
+        }
+        request = request.header(header.key.trim(), header.value.as_str());
     }
 
-    if let Some(body) = payload.body {
+    if let Some(fields) = payload.form_fields {
+        let mut form = reqwest::multipart::Form::new();
+
+        for field in fields {
+            if field.field_type == "file" {
+                let Some(data) = field.file_base64 else { continue };
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(data)
+                    .map_err(|error| format!("文件内容解码失败：{error}"))?;
+
+                let file_name = field.file_name.unwrap_or_else(|| "file".to_string());
+                let mime = field
+                    .file_type
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| "application/octet-stream".to_string());
+
+                let part = reqwest::multipart::Part::bytes(bytes)
+                    .file_name(file_name)
+                    .mime_str(&mime)
+                    .map_err(|error| format!("文件类型无效：{error}"))?;
+
+                form = form.part(field.key, part);
+            } else {
+                form = form.text(field.key, field.value);
+            }
+        }
+
+        request = request.multipart(form);
+    } else if let Some(body) = payload.body {
         if !body.is_empty() {
             request = request.body(body);
         }
