@@ -1,0 +1,297 @@
+<script setup lang="ts">
+/**
+ * 响应面板：状态码 / 耗时 / 大小 + 响应体 / 响应头
+ */
+import { computed, ref } from 'vue'
+import type { SendResult } from '../api/http'
+import JsonView from './JsonView.vue'
+
+const props = defineProps<{
+  response: SendResult | null
+  sending: boolean
+}>()
+
+const tab = ref<'body' | 'headers'>('body')
+const copied = ref(false)
+
+/** 状态码对应的颜色：2xx 绿、4xx 橙、5xx 红 */
+const statusClass = computed(() => {
+  const status = props.response?.status ?? 0
+  if (status >= 200 && status < 300) return 'ok'
+  if (status >= 400 && status < 500) return 'warn'
+  if (status >= 500) return 'err'
+  return 'info'
+})
+
+/** 字节数转成好读的 KB / MB */
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`
+}
+
+/** 复制响应体到剪贴板 */
+async function copyBody() {
+  if (!props.response?.body) return
+  await navigator.clipboard.writeText(props.response.body)
+  copied.value = true
+  setTimeout(() => (copied.value = false), 1200)
+}
+</script>
+
+<template>
+  <section class="panel">
+    <header class="bar">
+      <div class="status-area">
+        <template v-if="sending">
+          <span class="muted">请求中…</span>
+        </template>
+
+        <template v-else-if="response && response.error">
+          <span class="status err">失败</span>
+          <span class="muted">请求没有送达</span>
+        </template>
+
+        <template v-else-if="response">
+          <span class="status" :class="statusClass">{{ response.status }}</span>
+          <span class="muted">{{ response.statusText || '—' }}</span>
+          <span class="sep">·</span>
+          <span class="muted">{{ response.durationMs }} ms</span>
+          <span class="sep">·</span>
+          <span class="muted">{{ formatSize(response.size) }}</span>
+        </template>
+
+        <template v-else>
+          <span class="muted">响应</span>
+        </template>
+      </div>
+
+      <div v-if="response && !response.error" class="actions">
+        <div class="switch">
+          <button :class="{ on: tab === 'body' }" @click="tab = 'body'">响应体</button>
+          <button :class="{ on: tab === 'headers' }" @click="tab = 'headers'">响应头</button>
+        </div>
+        <button class="copy" @click="copyBody">{{ copied ? '已复制' : '复制' }}</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- 还没发过请求 -->
+      <div v-if="!response && !sending" class="placeholder">
+        <p>发送请求后，响应会显示在这里</p>
+        <div class="kbd-row">
+          <span class="kbd">⌘</span><span class="kbd">↵</span>
+        </div>
+      </div>
+
+      <!-- 网络层错误 -->
+      <div v-else-if="response?.error" class="error">
+        <p class="error-title">请求失败</p>
+        <p class="error-msg">{{ response.error }}</p>
+      </div>
+
+      <template v-else-if="response">
+        <div v-if="tab === 'headers'" class="headers">
+          <div v-for="([key, value], i) in response.headers" :key="i" class="h-row">
+            <span class="h-key">{{ key }}</span>
+            <span class="h-value">{{ value }}</span>
+          </div>
+        </div>
+        <JsonView v-else :text="response.body" />
+      </template>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.status-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.status {
+  padding: 1px 8px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status.ok {
+  color: var(--green);
+  background: #eaf6f0;
+}
+
+.status.warn {
+  color: var(--amber);
+  background: #fbf2e3;
+}
+
+.status.err {
+  color: var(--red);
+  background: #fcecec;
+}
+
+.status.info {
+  color: var(--text-2);
+  background: #f1f1ee;
+}
+
+.muted {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.sep {
+  color: var(--text-3);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.switch {
+  display: flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: #f4f4f1;
+}
+
+.switch button {
+  padding: 3px 10px;
+  border-radius: 5px;
+  color: var(--text-2);
+  font-size: 12px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.switch button.on {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.copy {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.copy:hover {
+  color: var(--accent);
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 18px 24px;
+}
+
+.placeholder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.placeholder p {
+  margin: 0;
+}
+
+.kbd-row {
+  display: flex;
+  gap: 3px;
+}
+
+.kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-2);
+  font-size: 11px;
+  text-align: center;
+}
+
+.error {
+  padding: 12px 14px;
+  border: 1px solid #f3d6d6;
+  border-radius: var(--radius);
+  background: #fdf5f5;
+}
+
+.error-title {
+  margin: 0 0 4px;
+  color: var(--red);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.error-msg {
+  margin: 0;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.headers {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.h-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.h-row:hover {
+  background: #fbfbfa;
+}
+
+.h-key {
+  color: #43506c;
+  word-break: break-all;
+}
+
+.h-value {
+  color: var(--text-2);
+  word-break: break-all;
+}
+</style>
