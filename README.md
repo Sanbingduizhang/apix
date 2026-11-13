@@ -141,8 +141,16 @@ git push
 
 ### 只有一个工作流
 
-`release.yml`，**只在推 `v*` 标签时触发**：并行打 macOS arm64 与 Windows x64，
-然后建一个 draft Release 把安装包挂上去，你检查完点 Publish。
+`release.yml`，**只在推 `v*` 标签时触发**：
+
+1. 两个平台并行打包，且只出必要的那一种：mac 只出 `dmg`，Windows 只出 `nsis`
+   （不生成 `msi`，也不生成 updater 的 `.app.tar.gz`）
+2. 产物重命名成 `apix_<版本>_arm64.dmg` 和 `apix_<版本>_x64.exe`
+3. 建一个 draft Release，只挂这两个文件，你检查完点 Publish
+
+裁剪在两层做：`src-tauri/tauri.macos.conf.json` 和 `tauri.windows.conf.json`
+各自只管本平台的 `bundle.targets`，CI 里再用 `--bundles` 兜一层；
+最后 Release 只收 `out/` 目录里那一个文件，所以就算哪天 Tauri 多吐了什么，也漏不进来。
 
 ### 发一个正式版
 

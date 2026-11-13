@@ -1,35 +1,39 @@
 name: Release
 
-# 什么时候跑：推一个 v 开头的标签（比如 v1.0.1），或在 Actions 页面手动指定标签
+# 什么时候跑：推一个 v 开头的标签（比如 v1.1.0），或在 Actions 页面手动指定标签
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: '要发布的标签，例如 v1.0.0'
+        description: '要发布的标签，例如 v1.1.0'
         required: true
 
-# tauri-action 要创建 Release 并上传文件，必须有写权限
+# 建 Release 和上传文件需要写权限
 permissions:
   contents: write
 
 jobs:
   build:
-    name: ${{ matrix.name }}
+    name: 打包 ${{ matrix.name }}
     runs-on: ${{ matrix.platform }}
     strategy:
-      # 一个平台失败不要取消另一个，否则永远只能拿到一半产物
       fail-fast: false
       matrix:
         include:
-          # Apple Silicon。Intel Mac 需要 x86_64-apple-darwin，加一行即可
+          # 只出 dmg：不再生成 msi，也不生成 updater 的 .app.tar.gz
           - platform: macos-latest
             name: macOS arm64
             target: aarch64-apple-darwin
+            bundle: dmg
+            suffix: arm64.dmg
+          # 只出 NSIS 安装包：不再生成 msi
           - platform: windows-latest
             name: Windows x64
             target: x86_64-pc-windows-msvc
+            bundle: nsis
+            suffix: x64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -47,40 +51,94 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # 缓存 Rust 依赖，第二次构建能从十几分钟降到两三分钟
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 严格按 lockfile 装，避免 CI 上悄悄升了某个小版本导致行为不一致
       - run: pnpm install --frozen-lockfile
 
-      # 打包 + 自动建 Release + 上传产物，一步到位
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 打包
+        run: pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
+
+      # 改名成 apix_<版本>_arm64.dmg / apix_<版本>_x64.exe
+      # 只挑这一个文件往下传，别的产物不会溜进 Release
+      - name: 挑出安装包并改名
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "版本号：$VERSION"
+
+          mkdir -p out
+          SOURCE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle" \
+                     -type f \( -name "*.dmg" -o -name "*.exe" \) | head -n 1) || true
+
+          if [ -z "${SOURCE:-}" ]; then
+            echo "::error::没找到安装包，bundle 目录里实际有："
+            find src-tauri/target -path "*bundle*" -type f | head -20
+            exit 1
+          fi
+
+          TARGET="out/apix_${VERSION}_${{ matrix.suffix }}"
+          cp "$SOURCE" "$TARGET"
+          echo "最终产物：$TARGET"
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.event.inputs.tag || github.ref_name }}
-          releaseName: 'apix ${{ github.event.inputs.tag || github.ref_name }}'
-          releaseDraft: true
-          prerelease: false
-          releaseBody: |
-            ### 下载
+          name: apix-${{ matrix.suffix }}
+          path: out/*
+          retention-days: 7
+          if-no-files-found: error
 
-            | 系统 | 文件 |
-            |---|---|
-            | macOS（Apple Silicon） | `apix_*_aarch64.dmg` |
-            | Windows（64 位） | `apix_*_x64-setup.exe` 或 `apix_*_x64_en-US.msi` |
+  release:
+    name: 建草稿 Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # 两个平台的产物合到同一个目录
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
-            ### 首次打开会被系统拦一下
+      - name: 确认只有两个文件
+        run: ls -lh dist
 
-            安装包没有做代码签名（Apple 证书一年 99 美元、Windows 证书更贵），
-            所以系统会提示"来源不明的开发者"。这是正常的，可以这样绕过：
+      - name: 建草稿 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'EOF'
+          ### 下载
 
-            **macOS**：右键点 app → 打开 → 再点"打开"；
-            或者终端执行 `xattr -cr /Applications/apix.app`
+          | 系统 | 文件 |
+          |---|---|
+          | macOS（Apple Silicon） | `apix_*_arm64.dmg` |
+          | Windows（64 位） | `apix_*_x64.exe` |
 
-            **Windows**：SmartScreen 蓝色窗口里点"更多信息" → "仍要运行"
+          ### 首次打开会被系统拦一下
 
-            不放心的话可以自己从源码编译，一条命令：`pnpm tauri build`
-          args: --target ${{ matrix.target }}
+          安装包没有做代码签名（Apple 证书一年 99 美元、Windows 证书更贵），
+          所以系统会提示"来源不明的开发者"。这是正常的，可以这样绕过：
+
+          **macOS**：右键点 app → 打开 → 再点"打开"；
+          或者终端执行 `xattr -cr /Applications/apix.app`
+
+          **Windows**：SmartScreen 蓝色窗口里点"更多信息" → "仍要运行"
+
+          不放心的话可以自己从源码编译，一条命令：`pnpm tauri build`
+          EOF
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG 已存在，改为覆盖上传"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            echo "创建 Release $TAG"
+            gh release create "$TAG" dist/* \
+              --draft \
+              --title "apix $TAG" \
+              --notes-file notes.md
+          fi
