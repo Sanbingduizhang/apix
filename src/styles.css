@@ -371,3 +371,20 @@ select:focus {
 .m-OPTIONS {
   color: var(--text-2);
 }
+
+/* 语法高亮的配色。CodeEditor 里是用 v-html 注入的，拿不到 scoped 属性，只能放全局 */
+.tok-key {
+  color: var(--code-key);
+}
+.tok-str {
+  color: var(--green);
+}
+.tok-num {
+  color: var(--amber);
+}
+.tok-lit {
+  color: var(--purple);
+}
+.tok-punc {
+  color: var(--code-punc);
+}

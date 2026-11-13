@@ -44,6 +44,14 @@ export interface SendResult {
   error?: string
 }
 
+/** 实际发出去的那条请求（响应面板里可以回看） */
+export interface RequestSnapshot {
+  method: string
+  url: string
+  headers: [string, string][]
+  body: string | null
+}
+
 /** 判断是否运行在 Tauri 桌面端里 */
 function isDesktop(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window

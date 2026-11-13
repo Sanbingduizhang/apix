@@ -69,13 +69,20 @@ function localProxyPlugin(): Plugin {
           })
           const body = await response.text()
 
+          // set-cookie 有多条时，entries() 会把它们合成一个头，
+          // 前端就没法逐条解析了，所以单独取出来、一条一条给
+          const responseHeaders = [...response.headers.entries()].filter(
+            ([key]) => key.toLowerCase() !== 'set-cookie',
+          )
+          const setCookies = response.headers.getSetCookie?.() ?? []
+
           res.end(
             JSON.stringify({
               status: response.status,
               statusText: response.statusText,
               durationMs: Date.now() - started,
               size: Buffer.byteLength(body),
-              headers: [...response.headers.entries()],
+              headers: [...responseHeaders, ...setCookies.map((value) => ['set-cookie', value])],
               body,
             }),
           )

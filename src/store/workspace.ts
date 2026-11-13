@@ -10,6 +10,7 @@
 import { computed, reactive, watch } from 'vue'
 import type {
   ApiRequest,
+  AuthConfig,
   Environment,
   Folder,
   FormRow,
@@ -35,9 +36,22 @@ export function createKeyValueRow(): KeyValueRow {
   return { id: uid('kv'), key: '', value: '', enabled: true }
 }
 
-/** 一行空表单字段，默认是文本，点了"文件"就变成上传 */
+/** 一行空的表单字段，默认是文本，点了"文件"就变成上传 */
 export function createFormRow(): FormRow {
-  return { id: uid('kv'), key: '', value: '', enabled: true, type: 'text' }
+  return { id: uid('kv'), key: '', value: '', enabled: true, type: 'text', desc: '' }
+}
+
+/** 默认鉴权：什么都不加 */
+export function createAuth(): AuthConfig {
+  return {
+    type: 'none',
+    token: '',
+    username: '',
+    password: '',
+    key: 'X-API-Key',
+    value: '',
+    position: 'header',
+  }
 }
 
 /** 新建一套环境，默认各给一行空行，方便直接编辑 */
@@ -56,12 +70,17 @@ export function createRequest(folderId: string | null = null, name = '未命名�
   return {
     id: uid('req'),
     name,
+    desc: '',
     method: 'GET',
     url: '',
+    params: [createKeyValueRow()],
+    pathParams: [],
+    auth: createAuth(),
     headers: [createKeyValueRow()],
     bodyType: 'none',
+    bodyMode: 'raw',
     body: '',
-    form: [createFormRow()],
+    rows: [createFormRow()],
     folderId,
     updatedAt: Date.now(),
   }
@@ -125,11 +144,21 @@ function normalize(data: Workspace): Workspace {
       env.vars ??= [createKeyValueRow()]
     }
     for (const request of project.requests) {
+      // 老版本把表单行存在 form 里，现在统一叫 rows（json 的键值模式也用它）
+      const legacy = request as ApiRequest & { form?: FormRow[] }
+      request.rows ??= legacy.form ?? [createFormRow()]
+      delete legacy.form
+
+      request.params ??= [createKeyValueRow()]
+      request.pathParams ??= []
+      request.auth ??= createAuth()
+      request.desc ??= ''
+      request.bodyMode ??= 'raw'
       request.headers ??= [createKeyValueRow()]
-      request.form ??= [createFormRow()]
       request.folderId ??= null
+
       // 老版本的表单行没有 type 字段，补成文本
-      for (const row of request.form) row.type ??= 'text'
+      for (const row of request.rows) row.type ??= 'text'
     }
   }
 
@@ -501,4 +530,69 @@ export function resolveUrl(raw: string): string {
   const base = resolveVariables(activeBaseUrl.value).trim()
   if (!base) return url
   return `${base.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
+}
+
+/**
+ * 从地址里抽出路径变量名。
+ * 两种写法都认：/users/:id（REST 风格）和 /users/{id}（OpenAPI 风格）。
+ *
+ * 注意 :id 必须紧跟在 / 后面才算变量，否则 http://host:8080 里的端口号也会被认成变量。
+ */
+export function pathVariables(url: string): string[] {
+  const names = new Set<string>()
+
+  for (const matched of url.matchAll(/\{(\w+)\}/g)) names.add(matched[1])
+
+  for (let i = 0; i < url.length; i++) {
+    if (url[i] !== ':' || url[i - 1] !== '/') continue
+    const name = url.slice(i + 1).match(/^\w+/)?.[0]
+    if (name) names.add(name)
+  }
+
+  return [...names]
+}
+
+/**
+ * 把地址里的路径变量换成真实值。
+ * 填了的就替换，没填的保留 :id 原样，方便一眼看出漏了哪个。
+ */
+export function fillPathParams(url: string, rows: KeyValueRow[]): string {
+  const values = new Map<string, string>()
+  for (const row of rows) {
+    if (row.key.trim() && row.value.trim()) values.set(row.key.trim(), row.value.trim())
+  }
+
+  // {id} 形式可以直接替换
+  const replaced = url.replace(/\{(\w+)\}/g, (matched, name: string) => values.get(name) ?? matched)
+
+  // :id 形式要逐字扫，只替换 / 后面的冒号
+  let result = ''
+  for (let i = 0; i < replaced.length; i++) {
+    if (replaced[i] === ':' && replaced[i - 1] === '/') {
+      const name = replaced.slice(i + 1).match(/^\w+/)?.[0]
+      const value = name ? values.get(name) : undefined
+      if (name && value !== undefined) {
+        result += value
+        i += name.length
+        continue
+      }
+    }
+    result += replaced[i]
+  }
+  return result
+}
+
+/**
+ * 让 pathParams 跟着地址走：新出现的变量补一行，地址里删掉的变量也删掉。
+ * 已经填过的值会保留，改地址不会把填好的东西弄丢。
+ */
+export function syncPathParams(request: ApiRequest) {
+  const names = pathVariables(request.url)
+  const kept = request.pathParams.filter((row) => names.includes(row.key))
+  for (const name of names) {
+    if (!kept.some((row) => row.key === name)) {
+      kept.push({ ...createKeyValueRow(), key: name })
+    }
+  }
+  request.pathParams = kept
 }
